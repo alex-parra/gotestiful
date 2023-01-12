@@ -1,0 +1,12 @@
+{
+  "color": true,
+  "cache": true,
+  "cover": true,
+  "report": false,
+  "coverProfile": "",
+  "verbose": false,
+  "listIgnored": false,
+  "skipEmpty": true,
+  "listEmpty": false,
+  "exclude": []
+}
