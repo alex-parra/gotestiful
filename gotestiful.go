@@ -11,16 +11,16 @@ const version = "v0.1.1"
 func main() {
 	conf := gtf.GetConfig()
 
-	flagVersion := flag.Bool("version", false, "print version information")
-	flagColor := flag.Bool("color", conf.Color, "colorized output on/off")
-	flagCache := flag.Bool("cache", conf.Cache, "tests cache on/off eg. 'go test -count=1' if false")
-	flagCover := flag.Bool("cover", conf.Cover, "coverage reporting on/off eg. 'go test -cover'")
-	flagCoverReport := flag.Bool("report", conf.Report, "open html coverage report eg. 'go tool cover -html'")
-	flagCoverProfile := flag.String("coverprofile", conf.CoverProfile, "coverage report output file path (default ./coverage.out)")
-	flagVerbose := flag.Bool("v", conf.Verbose, "run tests with verbose output eg. 'go test -v'")
-	flagListIgnored := flag.Bool("listignored", conf.ListIgnored, "list ignored packages (at the end)")
-	flagSkipEmpty := flag.Bool("skipempty", conf.SkipEmpty, "skip packages with no tests")
-	flagListEmpty := flag.Bool("listempty", conf.ListEmpty, "list packages with no tests (at the end)")
+	flagVersion := flag.Bool("version", false, "Gotestiful version: print version information")
+	flagColor := flag.Bool("color", conf.Color, "Colorize output: turn colorized output on/off")
+	flagCache := flag.Bool("cache", conf.Cache, "Test caching: tests cache on/off eg. 'go test -count=1' if false")
+	flagCover := flag.Bool("cover", conf.Cover, "Coverage: turn coverage reporting on/off eg. 'go test -cover'")
+	flagCoverReport := flag.Bool("report", conf.Report, "Coverage details: open html coverage report eg. 'go tool cover -html'")
+	flagCoverProfile := flag.String("coverprofile", conf.CoverProfile, "Coverage profile: coverage report output file path (default ./coverage.out)")
+	flagVerbose := flag.Bool("v", conf.Verbose, "Verbose output: run tests with verbose output eg. 'go test -v'")
+	flagListIgnored := flag.Bool("listignored", conf.ListIgnored, "Excluded packages: list ignored packages (at the end)")
+	flagSkipEmpty := flag.Bool("skipempty", conf.SkipEmpty, "No tests omit: do not show packages with no tests in the output (affects coverage)")
+	flagListEmpty := flag.Bool("listempty", conf.ListEmpty, "No tests list: list packages with no tests (at the end)")
 	flag.Usage = gtf.PrintHelp
 	flag.Parse()
 
