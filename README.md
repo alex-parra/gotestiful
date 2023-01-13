@@ -4,21 +4,20 @@
 
 `gotestiful` is a go terminal program that wraps 'go test' to streamline tests running and config and also improves the coverage presentation output.
 
-## Install
+## Quick start
 
-```
-go install github.com/alex-parra/gotestiful@latest
-```
+1. run `go install github.com/alex-parra/gotestiful@latest`
+2. run `gotestiful` from the root of any go project (where go.mod is)
 
 ## Examples
 
-- `gotestiful init` creates a base configuration in the current folder  
-  (the config file is optional. you may opt to use flags only)
-- `gotestiful help` shows examples and flags infos
 - `gotestiful` runs tests for the current folder eg. `go test ./...`
+- `gotestiful -help` shows examples and flags infos
 - `gotesttiful some/pkg` runs only that package eg. `go test some/pkg`
 - `gotestiful -cache=false` runs tests without cache eg. `go test -count=1 ...`
-- ... see `gotestiful help` for all flags
+- `gotestiful init` creates a base configuration in the current folder  
+  (the config file is optional. you may opt to use flags only)
+- ... see `gotestiful -help` for all flags
 
 ## Features:
 
@@ -35,3 +34,11 @@ go install github.com/alex-parra/gotestiful@latest
 
 - **open html coverage detail report**  
   set the `-report` flag and the coverage html detail will open (eg. `go tool cover -html`)
+
+## Contributors
+
+<a href="https://github.com/Tanu-N-Prabhu/Python/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=alex-parra/gotestiful"/>
+</a>
+
+<small>Made with [contributors-img](https://contrib.rocks).</small>
