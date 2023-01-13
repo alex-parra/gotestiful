@@ -6,6 +6,12 @@ import (
 	"strings"
 )
 
+func PrintVersion(version string) {
+	fmt.Println()
+	fmt.Println(shColor("yellow:bold", "gotestiful"), version)
+	fmt.Println("to update run 'go install github.com/alex-parra/gotestiful@latest'")
+}
+
 func PrintHelp() {
 	fmt.Println()
 

@@ -6,10 +6,12 @@ import (
 	gtf "github.com/alex-parra/gotestiful/internal"
 )
 
+const version = "v0.1.1"
+
 func main() {
 	conf := gtf.GetConfig()
 
-	flagHelp := flag.Bool("help", false, "print this help information")
+	flagVersion := flag.Bool("version", false, "print version information")
 	flagColor := flag.Bool("color", conf.Color, "colorized output on/off")
 	flagCache := flag.Bool("cache", conf.Cache, "tests cache on/off eg. 'go test -count=1' if false")
 	flagCover := flag.Bool("cover", conf.Cover, "coverage reporting on/off eg. 'go test -cover'")
@@ -19,6 +21,7 @@ func main() {
 	flagListIgnored := flag.Bool("listignored", conf.ListIgnored, "list ignored packages (at the end)")
 	flagSkipEmpty := flag.Bool("skipempty", conf.SkipEmpty, "skip packages with no tests")
 	flagListEmpty := flag.Bool("listempty", conf.ListEmpty, "list packages with no tests (at the end)")
+	flag.Usage = gtf.PrintHelp
 	flag.Parse()
 
 	testPath := flag.Arg(0)
@@ -27,8 +30,8 @@ func main() {
 	}
 
 	switch {
-	case *flagHelp:
-		gtf.PrintHelp()
+	case *flagVersion:
+		gtf.PrintVersion(version)
 
 	case testPath == "init":
 		gtf.InitConfig()
