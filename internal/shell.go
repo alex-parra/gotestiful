@@ -38,7 +38,10 @@ func shPipe(prog string, args shArgs, stdIn string, pipeLine chan string) {
 	cmd := exec.Command(prog, args...)
 
 	stdout, _ := cmd.StdoutPipe()
-	cmd.Start()
+	err := cmd.Start()
+	if err != nil {
+		log.Fatal(fmt.Errorf("failed to run %s: %w", prog, err))
+	}
 
 	scanner := bufio.NewScanner(stdout)
 	scanner.Split(bufio.ScanLines)
@@ -46,8 +49,11 @@ func shPipe(prog string, args shArgs, stdIn string, pipeLine chan string) {
 		pipeLine <- scanner.Text()
 	}
 
-	cmd.Wait()
+	err = cmd.Wait()
 	close(pipeLine)
+	if err != nil {
+		log.Fatal(fmt.Errorf("failed to run %s: %w", prog, err))
+	}
 }
 
 // shColor adds ansi escape codes to colorize shell output

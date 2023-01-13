@@ -10,3 +10,6 @@ build:
 
 install:
 	go install github.com/alex-parra/gotestiful@latest
+
+lint:
+	go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.50.1 run ./...

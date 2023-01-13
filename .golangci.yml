@@ -1,0 +1,46 @@
+linters:
+  enable:
+    - gofmt
+    - stylecheck
+    - errorlint
+    - exhaustive
+    - makezero
+    - nakedret
+    - predeclared
+    - unconvert
+    - exportloopref
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - durationcheck
+    - errname
+    - misspell
+    - nilerr
+    - reassign
+    - usestdlibvars
+run:
+  timeout: 5m
+issues:
+  exclude:
+    # stylecheck warns us about underscores in package names and var names, let's ignore that for now
+    # - should not use underscores in package names
+    # - should not use underscores in Go names
+linters-settings:
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment
+      - shadow
+    # disable-all: false
+  staticcheck:
+    go: '1.19'
+    checks: ['all']
+  gosimple:
+    go: '1.19'
+    checks: ['all']
+  exhaustive:
+    default-signifies-exhaustive: true
+  stylecheck:
+    checks:
+      - ST1003
