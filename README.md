@@ -4,9 +4,16 @@
 
 `gotestiful` is a go terminal program that wraps 'go test' to streamline tests running and config and also improves the coverage presentation output.
 
+## Install
+
+```
+go install github.com/alex-parra/gotestiful@latest
+```
+
 ## Examples
 
-- `gotestiful init` creates a base configuration in the current folder
+- `gotestiful init` creates a base configuration in the current folder  
+  (the config file is optional. you may opt to use flags only)
 - `gotestiful help` shows examples and flags infos
 - `gotestiful` runs tests for the current folder eg. `go test ./...`
 - `gotesttiful some/pkg` runs only that package eg. `go test some/pkg`
