@@ -24,6 +24,7 @@ func processOutput(params *processOutputParams) {
 	regexPackageSummary := regexp.MustCompile(`^(ok  \t|FAIL\t)`)
 	regexFailCoverage := regexp.MustCompile(`^coverage: `)
 	regexCoverageString := regexp.MustCompile(`coverage: (\d{1,3}\.\d{1,2}%) of statements$`)
+	regexCoverageNoStatements := regexp.MustCompile(`^coverage: \[no statements\]$`)
 	regexRunLine := regexp.MustCompile(`^=== RUN`)
 	regexPassFailLine := regexp.MustCompile(`^(PASS|FAIL)$`)
 	regexTestSummary := regexp.MustCompile(`^\s*--- (PASS|FAIL): `)
@@ -81,14 +82,20 @@ func processOutput(params *processOutputParams) {
 
 			line += strings.Repeat(" ", maxPkgLen-len(parts.pkg))
 
-			pkgCoverage := regexCoverageString.ReplaceAllString(parts.coverage, "$1")
-			c := coverageParse(pkgCoverage)
-			coverages = append(coverages, c)
+			if regexCoverageNoStatements.MatchString(parts.coverage) {
+				line += "   "
+				line += shColor("gray", sf("%6s", "-")+"     no statements")
+			} else {
+				pkgCoverage := regexCoverageString.ReplaceAllString(parts.coverage, "$1")
+				c := coverageParse(pkgCoverage)
+				coverages = append(coverages, c)
 
-			line += "   "
-			line += shColor(coverageColor(c), sf("%6s", pkgCoverage))
-			line += "     "
-			line += strings.Replace(parts.elapsed, "(cached)", shColor("gray", "cached"), 1)
+				line += "   "
+				line += shColor(coverageColor(c), sf("%6s", pkgCoverage))
+
+				line += "     "
+				line += strings.Replace(parts.elapsed, "(cached)", shColor("gray", "cached"), 1)
+			}
 
 			if params.FlagVerbose {
 				line += "\n" + shColor("gray", strings.Repeat("-", maxPkgLen+22))

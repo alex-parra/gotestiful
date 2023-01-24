@@ -179,6 +179,21 @@ func TestProcessOutput(t *testing.T) {
 		})
 	})
 
+	t.Run("coverage no statements", func(t *testing.T) {
+		out := runTests(
+			&processOutputParams{ToTestPackages: []string{"some/awesome/pkg"}},
+			"ok  \tsome/awesome/pkg\t0.123s\tcoverage: [no statements]",
+		)
+
+		assert.Equal(t, out, []string{
+			"✔ some/awesome/pkg        -     no statements",
+			"",
+			"❯ Coverage: 0.00%",
+			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
+			"",
+		})
+	})
+
 	t.Run("fail line (with coverage from previous line)", func(t *testing.T) {
 		out := runTests(
 			&processOutputParams{ToTestPackages: []string{"some/awesome/pkg"}},
