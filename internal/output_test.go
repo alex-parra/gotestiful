@@ -75,6 +75,21 @@ func TestProcessOutput(t *testing.T) {
 		})
 	})
 
+	t.Run("SKIP line", func(t *testing.T) {
+		out := runTests(
+			&processOutputParams{ToTestPackages: []string{"some/awesome/pkg"}},
+			"    --- SKIP: SomeTest",
+		)
+
+		assert.Equal(t, out, []string{
+			"  ≋ SomeTest    skipped",
+			"",
+			"❯ Coverage: 0.00%",
+			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
+			"",
+		})
+	})
+
 	t.Run("FAIL only line", func(t *testing.T) {
 		out := runTests(
 			&processOutputParams{ToTestPackages: []string{"some/awesome/pkg"}},

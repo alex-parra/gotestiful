@@ -27,7 +27,8 @@ func processOutput(params *processOutputParams) {
 	regexCoverageNoStatements := regexp.MustCompile(`^coverage: \[no statements\]$`)
 	regexRunLine := regexp.MustCompile(`^=== RUN`)
 	regexPassFailLine := regexp.MustCompile(`^(PASS|FAIL)$`)
-	regexTestSummary := regexp.MustCompile(`^\s*--- (PASS|FAIL): `)
+	regexTestSummary := regexp.MustCompile(`^\s*--- (PASS|FAIL|SKIP): `)
+	regexTestSkip := regexp.MustCompile(`^\s*--- SKIP: `)
 
 	pkgsNoTests := []string{}
 	pkgsFailed := []string{}
@@ -102,9 +103,15 @@ func processOutput(params *processOutputParams) {
 			}
 
 		} else if regexTestSummary.MatchString(line) {
-			// Parse "PASS/FAIL" lines (test summary lines)
-			line = strings.Replace(line, "--- PASS: ", "✔ ", 1)
+			// Parse "PASS/FAIL/SKIP" lines (test summary lines)
+			line = strings.Replace(line, "(0.00s)", "", 1)
+
+			line = strings.Replace(line, "--- PASS: ", shColor("whitesmoke", "✔ "), 1)
 			line = strings.Replace(line, "--- FAIL: ", shColor("red", "✖ "), 1)
+
+			if regexTestSkip.MatchString(line) {
+				line = strings.Replace(line, "--- SKIP: ", shColor("gray", "≋ "), 1) + "    " + shColor("gray", "skipped")
+			}
 
 		} else {
 			// All other lines
