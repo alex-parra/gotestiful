@@ -9,6 +9,12 @@
 1. run `go install github.com/alex-parra/gotestiful@latest`
 2. run `gotestiful` from the root of any go project (where go.mod is)
 
+---
+
+Comparison of `go test` and `gotestiful` on [kubernetes/client-go](https://github.com/kubernetes/client-go)
+
+![kubernetes-client-go](https://drive.google.com/uc?export=view&id=1ZIFj6loyNTGxEUKVWwlE6sslh5CIgdd5)
+
 ## Examples
 
 - `gotestiful` runs tests for the current folder eg. `go test ./...`
