@@ -2,6 +2,8 @@ package internal
 
 import (
 	"fmt"
+	"log"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -33,8 +35,26 @@ func RunTests(opts RunTestsOpts) {
 	// Exclude by package prefix
 	testPkgs := allPkgs
 	if len(opts.Excludes) > 0 {
-		testPkgsStr := shCmd("grep", shArgs{"-Ev", getExcludePattern(opts.Excludes)}, allPkgsStr)
-		testPkgs = splitLines(testPkgsStr)
+		testPkgs = []string{}
+		excludeRegexs := make([]*regexp.Regexp, 0, len(opts.Excludes))
+		for _, exclude := range opts.Excludes {
+			regex, err := regexp.Compile("^" + exclude + "$")
+			if err != nil {
+				log.Fatalf("cannot compile regex %q: %+v", exclude, regex)
+			}
+			excludeRegexs = append(excludeRegexs, regex)
+		}
+		for _, pkg := range allPkgs {
+			isIncluded := true
+			for _, regex := range excludeRegexs {
+				if regex.MatchString(pkg) {
+					isIncluded = false
+				}
+			}
+			if isIncluded {
+				testPkgs = append(testPkgs, pkg)
+			}
+		}
 	}
 
 	ignoredPkgs := sliceExclude(allPkgs, testPkgs)
@@ -78,15 +98,4 @@ func RunTests(opts RunTestsOpts) {
 	if opts.FlagCoverReport {
 		shCmd("go", shArgs{"tool", "cover", "-html=" + coverProfile}, "")
 	}
-}
-
-func getExcludePattern(pkgs []string) string {
-	pkgExcludePattern := ""
-	for _, path := range pkgs {
-		if pkgExcludePattern != "" {
-			pkgExcludePattern = pkgExcludePattern + "|"
-		}
-		pkgExcludePattern += "^" + path
-	}
-	return pkgExcludePattern
 }
