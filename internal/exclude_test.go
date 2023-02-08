@@ -36,10 +36,10 @@ func TestExclude(t *testing.T) {
 		excluded:         []string{"one"},
 		expectedIncluded: []string{"zero", "two", "not/one", "three"},
 		expectedIgnored:  []string{"one/package", "one/other"},
-	},{
+	}, {
 		name:             "regex",
 		packages:         []string{"zero", "one/package", "one/other", "two/package", "two/other", "three"},
-		excluded:         []string{"*/package"},
+		excluded:         []string{".*/package"},
 		expectedIncluded: []string{"zero", "one/other", "two/other", "three"},
 		expectedIgnored:  []string{"one/package", "two/package"},
 	}, {
