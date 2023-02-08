@@ -47,20 +47,3 @@ func sliceAppendIf[T any](cond bool, lst []T, args ...T) []T {
 	}
 	return lst
 }
-
-// sliceExclude removes values from a slice
-func sliceExclude[T comparable](all []T, toExclude []T) []T {
-	toKeep := []T{}
-
-	toExcludeMap := map[T]struct{}{}
-	for _, e := range toExclude {
-		toExcludeMap[e] = struct{}{}
-	}
-
-	for _, e := range all {
-		_, shouldExclude := toExcludeMap[e]
-		toKeep = sliceAppendIf(!shouldExclude, toKeep, e)
-	}
-
-	return toKeep
-}

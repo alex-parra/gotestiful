@@ -30,14 +30,7 @@ func RunTests(opts RunTestsOpts) {
 	allPkgsStr := shCmd("go", shArgs{"list", opts.TestPath}, "")
 	allPkgs := splitLines(allPkgsStr)
 
-	// Exclude by package prefix
-	testPkgs := allPkgs
-	if len(opts.Excludes) > 0 {
-		testPkgsStr := shCmd("grep", shArgs{"-Ev", getExcludePattern(opts.Excludes)}, allPkgsStr)
-		testPkgs = splitLines(testPkgsStr)
-	}
-
-	ignoredPkgs := sliceExclude(allPkgs, testPkgs)
+	testPkgs, ignoredPkgs := excludePackages(allPkgs, opts.Excludes)
 
 	// function to inject that actually "prints" each line
 	lineOut := func(str ...string) { fmt.Println(strings.Join(str, " ")) }
@@ -78,15 +71,4 @@ func RunTests(opts RunTestsOpts) {
 	if opts.FlagCoverReport {
 		shCmd("go", shArgs{"tool", "cover", "-html=" + coverProfile}, "")
 	}
-}
-
-func getExcludePattern(pkgs []string) string {
-	pkgExcludePattern := ""
-	for _, path := range pkgs {
-		if pkgExcludePattern != "" {
-			pkgExcludePattern = pkgExcludePattern + "|"
-		}
-		pkgExcludePattern += "^" + path
-	}
-	return pkgExcludePattern
 }
