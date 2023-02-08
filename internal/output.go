@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -18,6 +19,8 @@ type processOutputParams struct {
 	FlagListEmpty   bool
 	FlagListIgnored bool
 	IndentSpaces    int
+
+	Err *error
 }
 
 func processOutput(params *processOutputParams) {
@@ -184,6 +187,9 @@ func processOutput(params *processOutputParams) {
 		params.LineOut(shColor("yellow:bold", "Packages with no tests:"))
 		for _, pkg := range pkgsNoTests {
 			params.LineOut("- " + pkg)
+		}
+		if len(pkgsNoTests) != 0 {
+			*params.Err = errors.New("there are packages without tests")
 		}
 	}
 

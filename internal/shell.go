@@ -42,6 +42,10 @@ func shJSONPipe[T any](prog string, args shArgs, stdIn string, eventPipe chan<- 
 
 	cmd := exec.Command(prog, args...)
 	stdout, _ := cmd.StdoutPipe()
+
+	var stdErr bytes.Buffer
+	cmd.Stderr = &stdErr
+
 	err := cmd.Start()
 	if err != nil {
 		return fmt.Errorf("failed to run %s: %w", prog, err)
@@ -63,6 +67,9 @@ func shJSONPipe[T any](prog string, args shArgs, stdIn string, eventPipe chan<- 
 	err = cmd.Wait()
 
 	if err != nil {
+		// print out the stdout back to stdout so we can debug
+		fmt.Fprintln(os.Stderr, stdErr.String())
+
 		return fmt.Errorf("failed to run %s: %w", prog, err)
 	}
 	return nil

@@ -49,6 +49,8 @@ func RunTests(opts RunTestsOpts) {
 	// channel to receive each 'go test' stdout line
 	goTestOutput := make(chan TestEvent)
 
+	var outputErr error
+
 	var wg sync.WaitGroup
 	wg.Add(1)
 
@@ -63,6 +65,8 @@ func RunTests(opts RunTestsOpts) {
 			FlagListEmpty:   opts.FlagListEmpty,
 			FlagListIgnored: opts.FlagListIgnored,
 			IndentSpaces:    2,
+
+			Err: &outputErr,
 		})
 		wg.Done()
 	}()
@@ -76,10 +80,16 @@ func RunTests(opts RunTestsOpts) {
 	testArgs = sliceAppendIf(opts.FlagCoverProfile != "" || opts.FlagCoverReport, testArgs, "-coverprofile="+coverProfile)
 	testArgs = append(testArgs, "-json")
 	testArgs = append(testArgs, testPkgs...)
+
 	err := shJSONPipe("go", testArgs, "", goTestOutput)
 	wg.Wait()
+
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	if outputErr != nil {
+		log.Fatal(outputErr)
 	}
 
 	// Open html coverage report
