@@ -2,8 +2,6 @@ package internal
 
 import (
 	"fmt"
-	"log"
-	"regexp"
 	"strings"
 	"sync"
 
@@ -32,32 +30,7 @@ func RunTests(opts RunTestsOpts) {
 	allPkgsStr := shCmd("go", shArgs{"list", opts.TestPath}, "")
 	allPkgs := splitLines(allPkgsStr)
 
-	// Exclude by package prefix
-	testPkgs := allPkgs
-	if len(opts.Excludes) > 0 {
-		testPkgs = []string{}
-		excludeRegexs := make([]*regexp.Regexp, 0, len(opts.Excludes))
-		for _, exclude := range opts.Excludes {
-			regex, err := regexp.Compile("^" + exclude + "$")
-			if err != nil {
-				log.Fatalf("cannot compile regex %q: %+v", exclude, regex)
-			}
-			excludeRegexs = append(excludeRegexs, regex)
-		}
-		for _, pkg := range allPkgs {
-			isIncluded := true
-			for _, regex := range excludeRegexs {
-				if regex.MatchString(pkg) {
-					isIncluded = false
-				}
-			}
-			if isIncluded {
-				testPkgs = append(testPkgs, pkg)
-			}
-		}
-	}
-
-	ignoredPkgs := sliceExclude(allPkgs, testPkgs)
+	testPkgs, ignoredPkgs := excludePackages(allPkgs, opts.Excludes)
 
 	// function to inject that actually "prints" each line
 	lineOut := func(str ...string) { fmt.Println(strings.Join(str, " ")) }

@@ -65,23 +65,3 @@ func TestSliceAppendIf(t *testing.T) {
 		assert.Equal(t, expected, actual)
 	})
 }
-
-func TestSliceExclude(t *testing.T) {
-	t.Run("with empty excludes", func(t *testing.T) {
-		expected := []string{"one", "two", "three"}
-		actual := sliceExclude([]string{"one", "two", "three"}, []string{})
-		assert.Equal(t, expected, actual)
-	})
-
-	t.Run("with one excludes", func(t *testing.T) {
-		expected := []string{"one", "three"}
-		actual := sliceExclude([]string{"one", "two", "three"}, []string{"two"})
-		assert.Equal(t, expected, actual)
-	})
-
-	t.Run("with multiple excludes", func(t *testing.T) {
-		expected := []string{"one", "three", "five"}
-		actual := sliceExclude([]string{"one", "two", "three", "four", "five"}, []string{"two", "four"})
-		assert.Equal(t, expected, actual)
-	})
-}
