@@ -14,9 +14,13 @@ func TestShCmd(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
-func TestShPipe(t *testing.T) {
-	out := []string{}
-	c := make(chan string)
+func TestShJSONPipe(t *testing.T) {
+	type Inp struct {
+		Foo string
+		Bar string
+	}
+	out := []Inp{}
+	c := make(chan Inp)
 	var wg sync.WaitGroup
 	wg.Add(1)
 
@@ -27,10 +31,19 @@ func TestShPipe(t *testing.T) {
 		wg.Done()
 	}()
 
-	shPipe("echo", shArgs{"Hello\nWorld"}, "", c)
+	shJSONPipe("echo", shArgs{`{"Foo": "1",
+		"Bar":"2"
+	}
+	{"Foo": "3", "Bar": "4"}
+	{"Foo":"5"}{"Bar": "6"}`}, "", c)
 	wg.Wait()
 
-	assert.Equal(t, out, []string{"Hello", "World"})
+	assert.Equal(t, out, []Inp{
+		{Foo: "1", Bar: "2"},
+		{Foo: "3", Bar: "4"},
+		{Foo: "5"},
+		{Bar: "6"},
+	})
 }
 
 func TestShColor(t *testing.T) {

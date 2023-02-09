@@ -1,10 +1,12 @@
 package internal
 
 import (
-	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -27,33 +29,43 @@ func shCmd(prog string, args shArgs, stdIn string) string {
 
 	err := cmd.Run()
 	if err != nil {
+		// print out the stdout back to stdout so we can debug
+		fmt.Fprintln(os.Stderr, stdErr.String())
 		log.Fatal(fmt.Errorf("failed to run %s: %w", prog, err))
 	}
 
 	return stdOut.String()
 }
 
-// shPipe runs a shell command with given args and pipes the output to a channel
-func shPipe(prog string, args shArgs, stdIn string, pipeLine chan string) {
-	cmd := exec.Command(prog, args...)
+func shJSONPipe[T any](prog string, args shArgs, stdIn string, eventPipe chan<- T) error {
+	defer close(eventPipe)
 
+	cmd := exec.Command(prog, args...)
 	stdout, _ := cmd.StdoutPipe()
 	err := cmd.Start()
 	if err != nil {
-		log.Fatal(fmt.Errorf("failed to run %s: %w", prog, err))
+		return fmt.Errorf("failed to run %s: %w", prog, err)
 	}
 
-	scanner := bufio.NewScanner(stdout)
-	scanner.Split(bufio.ScanLines)
-	for scanner.Scan() {
-		pipeLine <- scanner.Text()
+	dec := json.NewDecoder(stdout)
+	for {
+		var m T
+		if err := dec.Decode(&m); err != nil {
+			if err == io.EOF {
+				break
+			}
+			log.Fatalf("reading shell output: %v", err)
+		}
+
+		eventPipe <- m
 	}
 
 	err = cmd.Wait()
-	close(pipeLine)
+
 	if err != nil {
-		log.Fatal(fmt.Errorf("failed to run %s: %w", prog, err))
+		return fmt.Errorf("failed to run %s: %w", prog, err)
 	}
+	return nil
 }
 
 // shColor adds ansi escape codes to colorize shell output
