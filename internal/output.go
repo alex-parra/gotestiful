@@ -35,7 +35,6 @@ func processOutput(params *processOutputParams) {
 
 	pkgsNoTests := []string{}
 	pkgsFailed := []string{}
-	coverages := []float64{}
 
 	// the JSON output is printing all verbose; so we need to implement the FAIL output filtering ourselves
 	linesPerTest := map[string][]string{}
@@ -116,7 +115,6 @@ func processOutput(params *processOutputParams) {
 		if event.Test == "" && event.Action == "skip" {
 			pkg := event.Package
 			pkgsNoTests = append(pkgsNoTests, pkg)
-			coverages = append(coverages, 0)
 
 			if params.FlagSkipEmpty {
 				continue
@@ -144,7 +142,6 @@ func processOutput(params *processOutputParams) {
 			} else {
 				pkgCoverage := regexCoverageNonZero.ReplaceAllString(pastCoverage, "$1")
 				c := coverageParse(pkgCoverage)
-				coverages = append(coverages, c)
 
 				outLine += "   "
 				outLine += shColor(coverageColor(c), sf("%6s", pkgCoverage))
@@ -169,9 +166,6 @@ func processOutput(params *processOutputParams) {
 	params.LineOut()
 
 	chev := shColor("gray", "❯")
-	avgCoverage := sliceAvg(coverages)
-	cover := sf("%.2f", avgCoverage) + "%"
-	params.LineOut(sf("%s Coverage: %s", chev, shColor(coverageColor(avgCoverage)+":bold", cover)))
 	pkgs := sf("tested: %d", len(params.ToTestPackages))
 	pkgs += shColor("red", sf("    failed: %d", len(pkgsFailed)))
 	pkgs += shColor("yellow", sf("    noTests: %d", len(pkgsNoTests)))

@@ -62,7 +62,6 @@ func TestProcessOutput(t *testing.T) {
 		assert.Equal(t, out, []string{
 			"✔ tst              0.266s",
 			"",
-			"❯ Coverage: 0.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
 			"",
 		})
@@ -85,7 +84,6 @@ func TestProcessOutput(t *testing.T) {
 		assert.Equal(t, out, []string{
 			"✔ tst     0.0%     0.266s",
 			"",
-			"❯ Coverage: 0.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
 			"",
 		})
@@ -113,7 +111,6 @@ func TestProcessOutput(t *testing.T) {
 			"  code_test.go:10: some reason to skip",
 			"✔ tst              0.266s",
 			"",
-			"❯ Coverage: 0.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
 			"",
 		})
@@ -143,7 +140,6 @@ func TestProcessOutput(t *testing.T) {
 			"  code_test.go:12: but a test ain't one",
 			"◼ tst              0.308s",
 			"",
-			"❯ Coverage: 0.00%",
 			"❯ Pkgs: tested: 1    failed: 1    noTests: 0    excluded: 0",
 			"",
 		})
@@ -160,7 +156,6 @@ func TestProcessOutput(t *testing.T) {
 		assert.Equal(t, out, []string{
 			"! tst     0.0%     no tests",
 			"",
-			"❯ Coverage: 0.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 1    excluded: 0",
 			"",
 		})
@@ -176,7 +171,6 @@ func TestProcessOutput(t *testing.T) {
 
 		assert.Equal(t, out, []string{
 			"",
-			"❯ Coverage: 0.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 1    excluded: 0",
 			"",
 		})
@@ -193,7 +187,6 @@ func TestProcessOutput(t *testing.T) {
 		assert.Equal(t, out, []string{
 			"! tst     0.0%     no tests",
 			"",
-			"❯ Coverage: 0.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 1    excluded: 0",
 			"",
 			"Packages with no tests:",
@@ -219,7 +212,6 @@ func TestProcessOutput(t *testing.T) {
 		assert.Equal(t, out, []string{
 			"✔ tst    50.0%     0.186s",
 			"",
-			"❯ Coverage: 50.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
 			"",
 		})
@@ -243,7 +235,6 @@ func TestProcessOutput(t *testing.T) {
 		assert.Equal(t, out, []string{
 			"✔ tst        -     no statements",
 			"",
-			"❯ Coverage: 0.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
 			"",
 		})
@@ -280,7 +271,6 @@ func TestProcessOutput(t *testing.T) {
 			"  code_test.go:12: but a test ain't one",
 			"◼ tst    50.0%     0.108s",
 			"",
-			"❯ Coverage: 50.00%",
 			"❯ Pkgs: tested: 1    failed: 1    noTests: 0    excluded: 0",
 			"",
 		})
@@ -321,7 +311,6 @@ func TestProcessOutput(t *testing.T) {
 			"◼ tst    50.0%     0.108s",
 			"-------------------------",
 			"",
-			"❯ Coverage: 50.00%",
 			"❯ Pkgs: tested: 1    failed: 1    noTests: 0    excluded: 0",
 			""})
 	})
@@ -344,7 +333,6 @@ func TestProcessOutput(t *testing.T) {
 		assert.Equal(t, out, []string{
 			"✔ tst    50.0%     0.186s",
 			"",
-			"❯ Coverage: 50.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 1",
 			"",
 		})
@@ -368,7 +356,6 @@ func TestProcessOutput(t *testing.T) {
 		assert.Equal(t, out, []string{
 			"✔ tst    50.0%     0.186s",
 			"",
-			"❯ Coverage: 50.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 1",
 			"",
 			"Packages ignored:",
