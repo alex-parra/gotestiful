@@ -19,6 +19,7 @@ type config struct {
 	ListIgnored  bool     `json:"listIgnored"`
 	SkipEmpty    bool     `json:"skipEmpty"`
 	ListEmpty    bool     `json:"listEmpty"`
+	FullCoverage bool     `json:"fullCoverage"`
 	Exclude      []string `json:"exclude"`
 }
 

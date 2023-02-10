@@ -60,11 +60,12 @@ func main() {
 	flagCache := flag.Bool("cache", conf.Cache, "Test caching: tests cache on/off eg. 'go test -count=1' if false")
 	flagCover := flag.Bool("cover", conf.Cover, "Coverage: turn coverage reporting on/off eg. 'go test -cover'")
 	flagCoverReport := flag.Bool("report", conf.Report, "Coverage details: open html coverage report eg. 'go tool cover -html'")
-	flagCoverProfile := flag.String("coverprofile", conf.CoverProfile, "Coverage profile: coverage report output file path (default ./coverage.out)")
+	flagCoverProfile := flag.String("coverprofile", conf.CoverProfile, "Coverage profile: coverage report output file path (default ./coverage.out). Takes longer (disables caching).")
 	flagVerbose := flag.Bool("v", conf.Verbose, "Verbose output: run tests with verbose output eg. 'go test -v'")
 	flagListIgnored := flag.Bool("listignored", conf.ListIgnored, "Excluded packages: list ignored packages (at the end)")
 	flagSkipEmpty := flag.Bool("skipempty", conf.SkipEmpty, "No tests omit: do not show packages with no tests in the output (affects coverage)")
 	flagListEmpty := flag.Bool("listempty", conf.ListEmpty, "No tests list: list packages with no tests (at the end)")
+	flagFullCoverage := flag.Bool("fullCoverage", conf.FullCoverage, "Count overall coverage including packages without tests. Takes longer (disables caching).")
 	flag.Usage = gtf.PrintHelp
 	flag.Parse()
 
@@ -95,6 +96,7 @@ func main() {
 			FlagListIgnored:  *flagListIgnored,
 			FlagSkipEmpty:    *flagSkipEmpty,
 			FlagListEmpty:    *flagListEmpty,
+			FlagFullCoverage: *flagFullCoverage,
 			Excludes:         conf.Exclude,
 		})
 		if err != nil {

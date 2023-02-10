@@ -47,6 +47,25 @@ func TestShJSONPipe(t *testing.T) {
 	})
 }
 
+func TestShPipe(t *testing.T) {
+	out := []string{}
+	c := make(chan string)
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		for line := range c {
+			out = append(out, line)
+		}
+		wg.Done()
+	}()
+
+	shPipe("echo", shArgs{"Hello\nWorld"}, "", c)
+	wg.Wait()
+
+	assert.Equal(t, out, []string{"Hello", "World"})
+}
+
 func TestShColor(t *testing.T) {
 	t.Run("no color", func(t *testing.T) {
 		color.NoColor = true

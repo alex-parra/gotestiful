@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -63,6 +64,38 @@ func shJSONPipe[T any](prog string, args shArgs, stdIn string, eventPipe chan<- 
 	err = cmd.Wait()
 
 	if err != nil {
+		return fmt.Errorf("failed to run %s: %w", prog, err)
+	}
+	return nil
+}
+
+// shPipe runs a shell command with given args and pipes the output to a channel
+func shPipe(prog string, args shArgs, stdIn string, pipeLine chan<- string) error {
+	cmd := exec.Command(prog, args...)
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+
+	var stdErr bytes.Buffer
+	cmd.Stderr = &stdErr
+
+	err = cmd.Start()
+	if err != nil {
+		return fmt.Errorf("failed to run %s: %w", prog, err)
+	}
+
+	scanner := bufio.NewScanner(stdout)
+	scanner.Split(bufio.ScanLines)
+	for scanner.Scan() {
+		pipeLine <- scanner.Text()
+	}
+
+	err = cmd.Wait()
+	close(pipeLine)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, stdErr.String())
 		return fmt.Errorf("failed to run %s: %w", prog, err)
 	}
 	return nil

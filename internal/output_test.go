@@ -30,6 +30,7 @@ func runTests(p *processOutputParams, outLines ...TestEvent) []string {
 			FlagListEmpty:   p.FlagListEmpty,
 			FlagListIgnored: p.FlagListIgnored,
 			IndentSpaces:    2,
+			AverageCoverage: true,
 		})
 		wg.Done()
 	}()
@@ -59,13 +60,13 @@ func TestProcessOutput(t *testing.T) {
 			TestEvent{Action: "pass", Package: "tst", Elapsed: 0.266},
 		)
 
-		assert.Equal(t, out, []string{
+		assert.Equal(t, []string{
 			"✔ tst              0.266s",
 			"",
-			"❯ Coverage: 0.00%",
+			"❯ Average Coverage: 0.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
 			"",
-		})
+		}, out)
 	})
 
 	t.Run("one dummy test, coverage flag", func(t *testing.T) {
@@ -82,13 +83,13 @@ func TestProcessOutput(t *testing.T) {
 			TestEvent{Action: "pass", Package: "tst", Elapsed: 0.266},
 		)
 
-		assert.Equal(t, out, []string{
+		assert.Equal(t, []string{
 			"✔ tst     0.0%     0.266s",
 			"",
-			"❯ Coverage: 0.00%",
+			"❯ Average Coverage: 0.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
 			"",
-		})
+		}, out)
 	})
 
 	// with the new logic, skipped are written only on verbose
@@ -108,15 +109,15 @@ func TestProcessOutput(t *testing.T) {
 			TestEvent{Action: "pass", Package: "tst", Elapsed: 0.266},
 		)
 
-		assert.Equal(t, out, []string{
+		assert.Equal(t, []string{
 			"≋ TestOther     skipped",
 			"  code_test.go:10: some reason to skip",
 			"✔ tst              0.266s",
 			"",
-			"❯ Coverage: 0.00%",
+			"❯ Average Coverage: 0.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
 			"",
-		})
+		}, out)
 	})
 
 	t.Run("failing test", func(t *testing.T) {
@@ -136,17 +137,17 @@ func TestProcessOutput(t *testing.T) {
 			TestEvent{Action: "fail", Package: "tst", Elapsed: 0.308},
 		)
 
-		assert.Equal(t, out, []string{
+		assert.Equal(t, []string{
 			"✖ TestFailing",
 			"if you having correctness problems i feel bad for you son",
 			"i've got 99 problems",
 			"  code_test.go:12: but a test ain't one",
 			"◼ tst              0.308s",
 			"",
-			"❯ Coverage: 0.00%",
+			"❯ Average Coverage: 0.00%",
 			"❯ Pkgs: tested: 1    failed: 1    noTests: 0    excluded: 0",
 			"",
-		})
+		}, out)
 	})
 
 	t.Run("no tests line (no skip)", func(t *testing.T) {
@@ -157,13 +158,13 @@ func TestProcessOutput(t *testing.T) {
 			TestEvent{Action: "skip", Package: "tst", Elapsed: 0},
 		)
 
-		assert.Equal(t, out, []string{
+		assert.Equal(t, []string{
 			"! tst     0.0%     no tests",
 			"",
-			"❯ Coverage: 0.00%",
+			"❯ Average Coverage: 0.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 1    excluded: 0",
 			"",
-		})
+		}, out)
 	})
 
 	t.Run("no tests line (skip)", func(t *testing.T) {
@@ -174,12 +175,12 @@ func TestProcessOutput(t *testing.T) {
 			TestEvent{Action: "skip", Package: "tst", Elapsed: 0},
 		)
 
-		assert.Equal(t, out, []string{
+		assert.Equal(t, []string{
 			"",
-			"❯ Coverage: 0.00%",
+			"❯ Average Coverage: 0.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 1    excluded: 0",
 			"",
-		})
+		}, out)
 	})
 
 	t.Run("no tests line (list)", func(t *testing.T) {
@@ -190,15 +191,15 @@ func TestProcessOutput(t *testing.T) {
 			TestEvent{Action: "skip", Package: "tst", Elapsed: 0},
 		)
 
-		assert.Equal(t, out, []string{
+		assert.Equal(t, []string{
 			"! tst     0.0%     no tests",
 			"",
-			"❯ Coverage: 0.00%",
+			"❯ Average Coverage: 0.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 1    excluded: 0",
 			"",
 			"Packages with no tests:",
 			"- tst",
-		})
+		}, out)
 	})
 
 	t.Run("ok line, coverage", func(t *testing.T) {
@@ -216,13 +217,13 @@ func TestProcessOutput(t *testing.T) {
 			TestEvent{Action: "pass", Package: "tst", Elapsed: 0.186},
 		)
 
-		assert.Equal(t, out, []string{
+		assert.Equal(t, []string{
 			"✔ tst    50.0%     0.186s",
 			"",
-			"❯ Coverage: 50.00%",
+			"❯ Average Coverage: 50.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
 			"",
-		})
+		}, out)
 	})
 
 	t.Run("coverage no statements", func(t *testing.T) {
@@ -240,13 +241,13 @@ func TestProcessOutput(t *testing.T) {
 			TestEvent{Action: "pass", Package: "tst", Elapsed: 0.11},
 		)
 
-		assert.Equal(t, out, []string{
+		assert.Equal(t, []string{
 			"✔ tst        -     no statements",
 			"",
-			"❯ Coverage: 0.00%",
+			"❯ Average Coverage: 0.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
 			"",
-		})
+		}, out)
 	})
 
 	t.Run("one test fail, one succseccful, no verbose, coverage", func(t *testing.T) {
@@ -273,17 +274,17 @@ func TestProcessOutput(t *testing.T) {
 			TestEvent{Action: "fail", Package: "tst", Elapsed: 0.108},
 		)
 
-		assert.Equal(t, out, []string{
+		assert.Equal(t, []string{
 			"✖ TestFailing",
 			"if you having correctness problems i feel bad for you son",
 			"i've got 99 problems",
 			"  code_test.go:12: but a test ain't one",
 			"◼ tst    50.0%     0.108s",
 			"",
-			"❯ Coverage: 50.00%",
+			"❯ Average Coverage: 50.00%",
 			"❯ Pkgs: tested: 1    failed: 1    noTests: 0    excluded: 0",
 			"",
-		})
+		}, out)
 	})
 
 	t.Run("one test fail, one succseccful, verbose, coverage", func(t *testing.T) {
@@ -310,7 +311,7 @@ func TestProcessOutput(t *testing.T) {
 			TestEvent{Action: "fail", Package: "tst", Elapsed: 0.108},
 		)
 
-		assert.Equal(t, out, []string{
+		assert.Equal(t, []string{
 			"✖ TestFailing",
 			"if you having correctness problems i feel bad for you son",
 			"i've got 99 problems",
@@ -321,9 +322,9 @@ func TestProcessOutput(t *testing.T) {
 			"◼ tst    50.0%     0.108s",
 			"-------------------------",
 			"",
-			"❯ Coverage: 50.00%",
+			"❯ Average Coverage: 50.00%",
 			"❯ Pkgs: tested: 1    failed: 1    noTests: 0    excluded: 0",
-			""})
+			""}, out)
 	})
 
 	t.Run("ignored, no list", func(t *testing.T) {
@@ -341,13 +342,13 @@ func TestProcessOutput(t *testing.T) {
 			TestEvent{Action: "pass", Package: "tst", Elapsed: 0.186},
 		)
 
-		assert.Equal(t, out, []string{
+		assert.Equal(t, []string{
 			"✔ tst    50.0%     0.186s",
 			"",
-			"❯ Coverage: 50.00%",
+			"❯ Average Coverage: 50.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 1",
 			"",
-		})
+		}, out)
 	})
 
 	t.Run("ignored, list", func(t *testing.T) {
@@ -365,15 +366,15 @@ func TestProcessOutput(t *testing.T) {
 			TestEvent{Action: "pass", Package: "tst", Elapsed: 0.186},
 		)
 
-		assert.Equal(t, out, []string{
+		assert.Equal(t, []string{
 			"✔ tst    50.0%     0.186s",
 			"",
-			"❯ Coverage: 50.00%",
+			"❯ Average Coverage: 50.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 1",
 			"",
 			"Packages ignored:",
 			"- tst/ignored",
-		})
+		}, out)
 	})
 }
 
