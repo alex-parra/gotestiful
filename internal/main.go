@@ -2,8 +2,10 @@ package internal
 
 import (
 	"fmt"
+	"log"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/fatih/color"
 )
@@ -22,6 +24,15 @@ type RunTestsOpts struct {
 	Excludes         []string
 }
 
+type TestEvent struct {
+	Time    time.Time // encodes as an RFC3339-format string
+	Action  string
+	Package string
+	Test    string
+	Elapsed float64 // seconds
+	Output  string
+}
+
 func RunTests(opts RunTestsOpts) {
 	color.NoColor = !opts.FlagColor
 	coverProfile := zvfb(opts.FlagCoverProfile, "./coverage.out")
@@ -36,7 +47,7 @@ func RunTests(opts RunTestsOpts) {
 	lineOut := func(str ...string) { fmt.Println(strings.Join(str, " ")) }
 
 	// channel to receive each 'go test' stdout line
-	goTestOutput := make(chan string)
+	goTestOutput := make(chan TestEvent)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -63,9 +74,13 @@ func RunTests(opts RunTestsOpts) {
 	testArgs = sliceAppendIf(!opts.FlagCache, testArgs, "-count=1")
 	testArgs = sliceAppendIf(opts.FlagCover, testArgs, "-cover")
 	testArgs = sliceAppendIf(opts.FlagCoverProfile != "" || opts.FlagCoverReport, testArgs, "-coverprofile="+coverProfile)
+	testArgs = append(testArgs, "-json")
 	testArgs = append(testArgs, testPkgs...)
-	shPipe("go", testArgs, "", goTestOutput)
+	err := shJSONPipe("go", testArgs, "", goTestOutput)
 	wg.Wait()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// Open html coverage report
 	if opts.FlagCoverReport {

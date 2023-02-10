@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func runTests(p *processOutputParams, outLines ...string) []string {
-	c := make(chan string)
+func runTests(p *processOutputParams, outLines ...TestEvent) []string {
+	c := make(chan TestEvent)
 	var wg sync.WaitGroup
 	wg.Add(1)
 
@@ -46,13 +46,21 @@ func runTests(p *processOutputParams, outLines ...string) []string {
 func TestProcessOutput(t *testing.T) {
 	color.NoColor = true
 
-	t.Run("PASS only line", func(t *testing.T) {
+	t.Run("one dummy test, no coverage flag", func(t *testing.T) {
 		out := runTests(
-			&processOutputParams{ToTestPackages: []string{"some/awesome/pkg"}},
-			"PASS",
+			&processOutputParams{ToTestPackages: []string{"tst"}},
+
+			TestEvent{Action: "run", Package: "tst", Test: "TestDummy"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestDummy", Output: "=== RUN   TestDummy\n"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestDummy", Output: "--- PASS: TestDummy (0.00s)\n"},
+			TestEvent{Action: "pass", Package: "tst", Test: "TestDummy", Elapsed: 0},
+			TestEvent{Action: "output", Package: "tst", Output: "PASS\n"},
+			TestEvent{Action: "output", Package: "tst", Output: "ok  \ttst\t0.266s\n"},
+			TestEvent{Action: "pass", Package: "tst", Elapsed: 0.266},
 		)
 
 		assert.Equal(t, out, []string{
+			"✔ tst              0.266s",
 			"",
 			"❯ Coverage: 0.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
@@ -60,14 +68,22 @@ func TestProcessOutput(t *testing.T) {
 		})
 	})
 
-	t.Run("PASS line", func(t *testing.T) {
+	t.Run("one dummy test, coverage flag", func(t *testing.T) {
 		out := runTests(
-			&processOutputParams{ToTestPackages: []string{"some/awesome/pkg"}},
-			"    --- PASS: SomeTest",
+			&processOutputParams{ToTestPackages: []string{"tst"}},
+
+			TestEvent{Action: "run", Package: "tst", Test: "TestDummy"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestDummy", Output: "=== RUN   TestDummy\n"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestDummy", Output: "--- PASS: TestDummy (0.00s)\n"},
+			TestEvent{Action: "pass", Package: "tst", Test: "TestDummy", Elapsed: 0},
+			TestEvent{Action: "output", Package: "tst", Output: "PASS\n"},
+			TestEvent{Action: "output", Package: "tst", Output: "coverage: 0.0% of statements\n"},
+			TestEvent{Action: "output", Package: "tst", Output: "ok  \ttst\t0.266s\n"},
+			TestEvent{Action: "pass", Package: "tst", Elapsed: 0.266},
 		)
 
 		assert.Equal(t, out, []string{
-			"  ✔ SomeTest",
+			"✔ tst     0.0%     0.266s",
 			"",
 			"❯ Coverage: 0.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
@@ -75,14 +91,27 @@ func TestProcessOutput(t *testing.T) {
 		})
 	})
 
-	t.Run("SKIP line", func(t *testing.T) {
+	// with the new logic, skipped are written only on verbose
+	t.Run("one skipped", func(t *testing.T) {
 		out := runTests(
-			&processOutputParams{ToTestPackages: []string{"some/awesome/pkg"}},
-			"    --- SKIP: SomeTest",
+			&processOutputParams{ToTestPackages: []string{"tst"}},
+
+			TestEvent{Action: "run", Package: "tst", Test: "TestOther"},
+
+			TestEvent{Action: "output", Package: "tst", Test: "TestOther", Output: "=== RUN   TestOther\n"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestOther", Output: "    code_test.go:10: some reason to skip\n"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestOther", Output: "--- SKIP: TestOther (0.00s)\n"},
+			TestEvent{Action: "pass", Package: "tst", Test: "TestOther", Elapsed: 0},
+
+			TestEvent{Action: "output", Package: "tst", Output: "PASS\n"},
+			TestEvent{Action: "output", Package: "tst", Output: "ok  \ttst\t0.266s\n"},
+			TestEvent{Action: "pass", Package: "tst", Elapsed: 0.266},
 		)
 
 		assert.Equal(t, out, []string{
-			"  ≋ SomeTest    skipped",
+			"≋ TestOther     skipped",
+			"  code_test.go:10: some reason to skip",
+			"✔ tst              0.266s",
 			"",
 			"❯ Coverage: 0.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
@@ -90,57 +119,46 @@ func TestProcessOutput(t *testing.T) {
 		})
 	})
 
-	t.Run("FAIL only line", func(t *testing.T) {
+	t.Run("failing test", func(t *testing.T) {
 		out := runTests(
-			&processOutputParams{ToTestPackages: []string{"some/awesome/pkg"}},
-			"FAIL",
+			&processOutputParams{ToTestPackages: []string{"tst"}},
+
+			TestEvent{Action: "run", Package: "tst", Test: "TestFailing"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestFailing", Output: "=== RUN   TestFailing\n"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestFailing", Output: "if you having correctness problems i feel bad for you son\n"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestFailing", Output: "i've got 99 problems\n"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestFailing", Output: "    code_test.go:12: but a test ain't one\n"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestFailing", Output: "--- FAIL: TestFailing (0.00s)\n"},
+			TestEvent{Action: "fail", Package: "tst", Test: "TestFailing", Elapsed: 0},
+			TestEvent{Action: "output", Package: "tst", Output: "FAIL\n"},
+			TestEvent{Action: "output", Package: "tst", Output: "exit status 1\n"},
+			TestEvent{Action: "output", Package: "tst", Output: "FAIL\ttst\t0.308s\n"},
+			TestEvent{Action: "fail", Package: "tst", Elapsed: 0.308},
 		)
 
 		assert.Equal(t, out, []string{
+			"✖ TestFailing",
+			"if you having correctness problems i feel bad for you son",
+			"i've got 99 problems",
+			"  code_test.go:12: but a test ain't one",
+			"◼ tst              0.308s",
 			"",
 			"❯ Coverage: 0.00%",
-			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
-			"",
-		})
-	})
-
-	t.Run("FAIL line", func(t *testing.T) {
-		out := runTests(
-			&processOutputParams{ToTestPackages: []string{"some/awesome/pkg"}},
-			"    --- FAIL: SomeTest",
-		)
-
-		assert.Equal(t, out, []string{
-			"  ✖ SomeTest",
-			"",
-			"❯ Coverage: 0.00%",
-			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
-			"",
-		})
-	})
-
-	t.Run("=== RUN only line", func(t *testing.T) {
-		out := runTests(
-			&processOutputParams{ToTestPackages: []string{"some/awesome/pkg"}},
-			"=== RUN SomeTest ...",
-		)
-
-		assert.Equal(t, out, []string{
-			"",
-			"❯ Coverage: 0.00%",
-			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
+			"❯ Pkgs: tested: 1    failed: 1    noTests: 0    excluded: 0",
 			"",
 		})
 	})
 
 	t.Run("no tests line (no skip)", func(t *testing.T) {
 		out := runTests(
-			&processOutputParams{ToTestPackages: []string{"some/awesome/pkg"}},
-			"? some/awesome/pkg [no test files]",
+			&processOutputParams{ToTestPackages: []string{"tst"}},
+
+			TestEvent{Action: "output", Package: "tst", Output: "?   \ttst\t[no test files]\n"},
+			TestEvent{Action: "skip", Package: "tst", Elapsed: 0},
 		)
 
 		assert.Equal(t, out, []string{
-			"! some/awesome/pkg     0.0%     no tests",
+			"! tst     0.0%     no tests",
 			"",
 			"❯ Coverage: 0.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 1    excluded: 0",
@@ -150,8 +168,10 @@ func TestProcessOutput(t *testing.T) {
 
 	t.Run("no tests line (skip)", func(t *testing.T) {
 		out := runTests(
-			&processOutputParams{ToTestPackages: []string{"some/awesome/pkg"}, FlagSkipEmpty: true},
-			"? some/awesome/pkg [no test files]",
+			&processOutputParams{ToTestPackages: []string{"tst"}, FlagSkipEmpty: true},
+
+			TestEvent{Action: "output", Package: "tst", Output: "?   \ttst\t[no test files]\n"},
+			TestEvent{Action: "skip", Package: "tst", Elapsed: 0},
 		)
 
 		assert.Equal(t, out, []string{
@@ -162,33 +182,44 @@ func TestProcessOutput(t *testing.T) {
 		})
 	})
 
-	t.Run("no tests (list)", func(t *testing.T) {
+	t.Run("no tests line (list)", func(t *testing.T) {
 		out := runTests(
-			&processOutputParams{ToTestPackages: []string{"some/awesome/pkg"}, FlagListEmpty: true},
-			"? some/awesome/pkg [no test files]",
+			&processOutputParams{ToTestPackages: []string{"tst"}, FlagListEmpty: true},
+
+			TestEvent{Action: "output", Package: "tst", Output: "?   \ttst\t[no test files]\n"},
+			TestEvent{Action: "skip", Package: "tst", Elapsed: 0},
 		)
 
 		assert.Equal(t, out, []string{
-			"! some/awesome/pkg     0.0%     no tests",
+			"! tst     0.0%     no tests",
 			"",
 			"❯ Coverage: 0.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 1    excluded: 0",
 			"",
 			"Packages with no tests:",
-			"- some/awesome/pkg",
+			"- tst",
 		})
 	})
 
-	t.Run("ok line", func(t *testing.T) {
+	t.Run("ok line, coverage", func(t *testing.T) {
 		out := runTests(
-			&processOutputParams{ToTestPackages: []string{"some/awesome/pkg"}},
-			"ok  \tsome/awesome/pkg\t0.123s\tcoverage: 54.3% of statements",
+			&processOutputParams{ToTestPackages: []string{"tst"}},
+
+			TestEvent{Action: "run", Package: "tst", Test: "TestGood"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestGood", Output: "=== RUN   TestGood\n"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestGood", Output: "this line should be ignored, as we are not verbose\n"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestGood", Output: "--- PASS: TestGood (0.00s)\n"},
+			TestEvent{Action: "pass", Package: "tst", Test: "TestGood", Elapsed: 0},
+			TestEvent{Action: "output", Package: "tst", Output: "PASS\n"},
+			TestEvent{Action: "output", Package: "tst", Output: "coverage: 50.0% of statements\n"},
+			TestEvent{Action: "output", Package: "tst", Output: "ok  \ttst\t0.185s\n"},
+			TestEvent{Action: "pass", Package: "tst", Elapsed: 0.186},
 		)
 
 		assert.Equal(t, out, []string{
-			"✔ some/awesome/pkg    54.3%     0.123s",
+			"✔ tst    50.0%     0.186s",
 			"",
-			"❯ Coverage: 54.30%",
+			"❯ Coverage: 50.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
 			"",
 		})
@@ -196,12 +227,21 @@ func TestProcessOutput(t *testing.T) {
 
 	t.Run("coverage no statements", func(t *testing.T) {
 		out := runTests(
-			&processOutputParams{ToTestPackages: []string{"some/awesome/pkg"}},
-			"ok  \tsome/awesome/pkg\t0.123s\tcoverage: [no statements]",
+			&processOutputParams{ToTestPackages: []string{"tst"}},
+
+			TestEvent{Action: "run", Package: "tst", Test: "TestGood"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestGood", Output: "=== RUN   TestGood\n"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestGood", Output: "this line should be ignored, as we are not verbose\n"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestGood", Output: "--- PASS: TestGood (0.00s)\n"},
+			TestEvent{Action: "pass", Package: "tst", Test: "TestGood", Elapsed: 0},
+			TestEvent{Action: "output", Package: "tst", Output: "PASS\n"},
+			TestEvent{Action: "output", Package: "tst", Output: "coverage: [no statements]\n"},
+			TestEvent{Action: "output", Package: "tst", Output: "ok  \ttst\t0.110s\n"},
+			TestEvent{Action: "pass", Package: "tst", Elapsed: 0.11},
 		)
 
 		assert.Equal(t, out, []string{
-			"✔ some/awesome/pkg        -     no statements",
+			"✔ tst        -     no statements",
 			"",
 			"❯ Coverage: 0.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
@@ -209,90 +249,131 @@ func TestProcessOutput(t *testing.T) {
 		})
 	})
 
-	t.Run("fail line (with coverage from previous line)", func(t *testing.T) {
+	t.Run("one test fail, one succseccful, no verbose, coverage", func(t *testing.T) {
 		out := runTests(
-			&processOutputParams{ToTestPackages: []string{"some/awesome/pkg"}},
-			"coverage: 12.3% of statements",
-			"FAIL\tsome/awesome/pkg\t0.123s",
+			&processOutputParams{ToTestPackages: []string{"tst"}},
+
+			TestEvent{Action: "run", Package: "tst", Test: "TestFailing"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestFailing", Output: "=== RUN   TestFailing\n"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestFailing", Output: "if you having correctness problems i feel bad for you son\n"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestFailing", Output: "i've got 99 problems\n"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestFailing", Output: "    code_test.go:12: but a test ain't one\n"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestFailing", Output: "--- FAIL: TestFailing (0.00s)\n"},
+			TestEvent{Action: "fail", Package: "tst", Test: "TestFailing", Elapsed: 0},
+			TestEvent{Action: "run", Package: "tst", Test: "TestGood"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestGood", Output: "=== RUN   TestGood\n"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestGood", Output: "this one should not be printed\n"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestGood", Output: "because it's successful\n"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestGood", Output: "--- PASS: TestGood (0.00s)\n"},
+			TestEvent{Action: "pass", Package: "tst", Test: "TestGood", Elapsed: 0},
+			TestEvent{Action: "output", Package: "tst", Output: "FAIL\n"},
+			TestEvent{Action: "output", Package: "tst", Output: "coverage: 50.0% of statements\n"},
+			TestEvent{Action: "output", Package: "tst", Output: "exit status 1\n"},
+			TestEvent{Action: "output", Package: "tst", Output: "FAIL\ttst\t0.108s\n"},
+			TestEvent{Action: "fail", Package: "tst", Elapsed: 0.108},
 		)
 
 		assert.Equal(t, out, []string{
-			"◼ some/awesome/pkg    12.3%     0.123s",
+			"✖ TestFailing",
+			"if you having correctness problems i feel bad for you son",
+			"i've got 99 problems",
+			"  code_test.go:12: but a test ain't one",
+			"◼ tst    50.0%     0.108s",
 			"",
-			"❯ Coverage: 12.30%",
+			"❯ Coverage: 50.00%",
 			"❯ Pkgs: tested: 1    failed: 1    noTests: 0    excluded: 0",
 			"",
 		})
 	})
 
-	t.Run("unmatched lines", func(t *testing.T) {
+	t.Run("one test fail, one succseccful, verbose, coverage", func(t *testing.T) {
 		out := runTests(
-			&processOutputParams{ToTestPackages: []string{"some/awesome/pkg"}},
-			"Some test info\t123 is not 234",
-			"    more test debug infos...",
+			&processOutputParams{ToTestPackages: []string{"tst"}, FlagVerbose: true},
+
+			TestEvent{Action: "run", Package: "tst", Test: "TestFailing"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestFailing", Output: "=== RUN   TestFailing\n"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestFailing", Output: "if you having correctness problems i feel bad for you son\n"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestFailing", Output: "i've got 99 problems\n"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestFailing", Output: "    code_test.go:12: but a test ain't one\n"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestFailing", Output: "--- FAIL: TestFailing (0.00s)\n"},
+			TestEvent{Action: "fail", Package: "tst", Test: "TestFailing", Elapsed: 0},
+			TestEvent{Action: "run", Package: "tst", Test: "TestGood"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestGood", Output: "=== RUN   TestGood\n"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestGood", Output: "this one should be printed\n"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestGood", Output: "because it's successful\n"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestGood", Output: "--- PASS: TestGood (0.00s)\n"},
+			TestEvent{Action: "pass", Package: "tst", Test: "TestGood", Elapsed: 0},
+			TestEvent{Action: "output", Package: "tst", Output: "FAIL\n"},
+			TestEvent{Action: "output", Package: "tst", Output: "coverage: 50.0% of statements\n"},
+			TestEvent{Action: "output", Package: "tst", Output: "exit status 1\n"},
+			TestEvent{Action: "output", Package: "tst", Output: "FAIL\ttst\t0.108s\n"},
+			TestEvent{Action: "fail", Package: "tst", Elapsed: 0.108},
 		)
 
 		assert.Equal(t, out, []string{
-			"Some test info  123 is not 234",
-			"  more test debug infos...",
+			"✖ TestFailing",
+			"if you having correctness problems i feel bad for you son",
+			"i've got 99 problems",
+			"  code_test.go:12: but a test ain't one",
+			"✔ TestGood",
+			"this one should be printed",
+			"because it's successful",
+			"◼ tst    50.0%     0.108s",
+			"-------------------------",
 			"",
-			"❯ Coverage: 0.00%",
-			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
+			"❯ Coverage: 50.00%",
+			"❯ Pkgs: tested: 1    failed: 1    noTests: 0    excluded: 0",
+			""})
+	})
+
+	t.Run("ignored, no list", func(t *testing.T) {
+		out := runTests(
+			&processOutputParams{ToTestPackages: []string{"tst"}, IgnoredPackages: []string{"tst/ignored"}},
+
+			TestEvent{Action: "run", Package: "tst", Test: "TestGood"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestGood", Output: "=== RUN   TestGood\n"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestGood", Output: "this line should be ignored, as we are not verbose\n"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestGood", Output: "--- PASS: TestGood (0.00s)\n"},
+			TestEvent{Action: "pass", Package: "tst", Test: "TestGood", Elapsed: 0},
+			TestEvent{Action: "output", Package: "tst", Output: "PASS\n"},
+			TestEvent{Action: "output", Package: "tst", Output: "coverage: 50.0% of statements\n"},
+			TestEvent{Action: "output", Package: "tst", Output: "ok  \ttst\t0.185s\n"},
+			TestEvent{Action: "pass", Package: "tst", Elapsed: 0.186},
+		)
+
+		assert.Equal(t, out, []string{
+			"✔ tst    50.0%     0.186s",
+			"",
+			"❯ Coverage: 50.00%",
+			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 1",
 			"",
 		})
 	})
 
-	t.Run("verbose", func(t *testing.T) {
+	t.Run("ignored, list", func(t *testing.T) {
 		out := runTests(
-			&processOutputParams{ToTestPackages: []string{"some/awesome/pkg"}, FlagVerbose: true},
-			"ok  \tsome/awesome/pkg\t(cached)\tcoverage: 54.3% of statements",
+			&processOutputParams{ToTestPackages: []string{"tst"}, IgnoredPackages: []string{"tst/ignored"}, FlagListIgnored: true},
+
+			TestEvent{Action: "run", Package: "tst", Test: "TestGood"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestGood", Output: "=== RUN   TestGood\n"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestGood", Output: "this line should be ignored, as we are not verbose\n"},
+			TestEvent{Action: "output", Package: "tst", Test: "TestGood", Output: "--- PASS: TestGood (0.00s)\n"},
+			TestEvent{Action: "pass", Package: "tst", Test: "TestGood", Elapsed: 0},
+			TestEvent{Action: "output", Package: "tst", Output: "PASS\n"},
+			TestEvent{Action: "output", Package: "tst", Output: "coverage: 50.0% of statements\n"},
+			TestEvent{Action: "output", Package: "tst", Output: "ok  \ttst\t0.185s\n"},
+			TestEvent{Action: "pass", Package: "tst", Elapsed: 0.186},
 		)
 
 		assert.Equal(t, out, []string{
-			"✔ some/awesome/pkg    54.3%     cached\n" + strings.Repeat("-", 38),
+			"✔ tst    50.0%     0.186s",
 			"",
-			"❯ Coverage: 54.30%",
-			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
-			"",
-		})
-	})
-
-	t.Run("list ignored", func(t *testing.T) {
-		out := runTests(
-			&processOutputParams{ToTestPackages: []string{"some/awesome/pkg"}, IgnoredPackages: []string{"a/pkg/to/ignore"}, FlagListIgnored: true},
-			"ok  \tsome/awesome/pkg\t(cached)\tcoverage: 54.3% of statements",
-		)
-
-		assert.Equal(t, out, []string{
-			"✔ some/awesome/pkg    54.3%     cached",
-			"",
-			"❯ Coverage: 54.30%",
+			"❯ Coverage: 50.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 1",
 			"",
 			"Packages ignored:",
-			"- a/pkg/to/ignore",
+			"- tst/ignored",
 		})
-	})
-
-}
-
-func TestSplitSummaryLine(t *testing.T) {
-	t.Run("with missing elapsed and coverage", func(t *testing.T) {
-		expected := summaryLine{result: "res", pkg: "some/awe/some/pkg", elapsed: "", coverage: ""}
-		actual := splitSummaryLine("   res\t some/awe/some/pkg   \t   ")
-		assert.Equal(t, expected, actual)
-	})
-
-	t.Run("with missing coverage", func(t *testing.T) {
-		expected := summaryLine{result: "res", pkg: "some/awe/some/pkg", elapsed: "0.3214s", coverage: ""}
-		actual := splitSummaryLine("   res\t some/awe/some/pkg   \t  0.3214s ")
-		assert.Equal(t, expected, actual)
-	})
-
-	t.Run("all present", func(t *testing.T) {
-		expected := summaryLine{result: "res", pkg: "some/awe/some/pkg", elapsed: "0.1234s", coverage: "coverage: 50.0% of statements"}
-		actual := splitSummaryLine("   res\t some/awe/some/pkg   \t  0.1234s    \t coverage: 50.0% of statements")
-		assert.Equal(t, expected, actual)
 	})
 }
 
