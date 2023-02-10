@@ -3,7 +3,6 @@ package internal
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 )
@@ -37,39 +36,47 @@ var conf = config{
 	Exclude: []string{},
 }
 
-func GetConfig() config {
-	pwd := getPWD()
+func GetConfig() (config, error) {
+	pwd, err := getPWD()
+	if err != nil {
+		return config{}, err
+	}
 	confPath := filepath.Join(pwd, configFileName)
 
 	if fileExists(confPath) {
 		confBytes, err := readFile(confPath)
 		if err != nil {
-			log.Fatal(fmt.Errorf("failed to read config file: %w", err))
+			return config{}, fmt.Errorf("failed to read config file: %w", err)
 		}
 
 		err = json.Unmarshal(confBytes, &conf)
 		if err != nil {
-			log.Fatal(fmt.Errorf("failed to read config file: %w", err))
+			return config{}, fmt.Errorf("failed to read config file: %w", err)
 		}
 	}
 
-	return conf
+	return conf, nil
 }
 
 // Creates a config file in the current path with default values
-func InitConfig() {
-	pwd := getPWD()
+func InitConfig() error {
+	pwd, err := getPWD()
+	if err != nil {
+		return err
+	}
 	confPath := filepath.Join(pwd, configFileName)
 
 	if fileExists(confPath) {
-		log.Fatalf("config file already exits at %s", confPath)
+		return fmt.Errorf("config file already exits at %s", confPath)
 	}
 
 	data, _ := json.MarshalIndent(conf, "", "  ")
 
-	err := os.WriteFile(confPath, data, 0644)
+	err = os.WriteFile(confPath, data, 0644)
 
 	if err != nil {
-		log.Fatal(fmt.Errorf("failed to init config: %w", err))
+		return fmt.Errorf("failed to init config: %w", err)
 	}
+
+	return nil
 }

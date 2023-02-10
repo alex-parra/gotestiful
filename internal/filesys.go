@@ -2,16 +2,15 @@ package internal
 
 import (
 	"fmt"
-	"log"
 	"os"
 )
 
-func getPWD() string {
+func getPWD() (string, error) {
 	pwd, err := os.Getwd()
 	if err != nil {
-		log.Fatal(fmt.Errorf("failed to get current directory: %w", err))
+		return "", fmt.Errorf("failed to get current directory: %w", err)
 	}
-	return pwd
+	return pwd, err
 }
 
 func fileExists(filename string) bool {

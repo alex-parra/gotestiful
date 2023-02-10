@@ -10,8 +10,9 @@ import (
 
 func TestShCmd(t *testing.T) {
 	expected := "Hello\n"
-	actual := shCmd("echo", shArgs{"Hello"}, "")
+	actual, err := shCmd("echo", shArgs{"Hello"}, "")
 	assert.Equal(t, expected, actual)
+	assert.NoError(t, err)
 }
 
 func TestShJSONPipe(t *testing.T) {
