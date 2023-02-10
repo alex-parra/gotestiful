@@ -10,16 +10,17 @@ import (
 const configFileName = ".gotestiful"
 
 type config struct {
-	Color        bool     `json:"color"`
-	Cache        bool     `json:"cache"`
-	Cover        bool     `json:"cover"`
-	Report       bool     `json:"report"`
-	CoverProfile string   `json:"coverProfile"`
-	Verbose      bool     `json:"verbose"`
-	ListIgnored  bool     `json:"listIgnored"`
-	SkipEmpty    bool     `json:"skipEmpty"`
-	ListEmpty    bool     `json:"listEmpty"`
-	Exclude      []string `json:"exclude"`
+	Color           bool     `json:"color"`
+	Cache           bool     `json:"cache"`
+	Cover           bool     `json:"cover"`
+	Report          bool     `json:"report"`
+	CoverProfile    string   `json:"coverProfile"`
+	Verbose         bool     `json:"verbose"`
+	ListIgnored     bool     `json:"listIgnored"`
+	SkipEmpty       bool     `json:"skipEmpty"`
+	ListEmpty       bool     `json:"listEmpty"`
+	EmptyInCoverage bool     `json:"emptyInCoverage"`
+	Exclude         []string `json:"exclude"`
 }
 
 // Default config values

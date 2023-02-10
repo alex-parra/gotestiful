@@ -8,5 +8,6 @@
   "listIgnored": false,
   "skipEmpty": true,
   "listEmpty": false,
-  "exclude": []
+  "exclude": [],
+  "emptyInCoverage": true
 }

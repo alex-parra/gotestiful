@@ -18,9 +18,15 @@ type processOutputParams struct {
 	FlagListEmpty   bool
 	FlagListIgnored bool
 	IndentSpaces    int
+	DummyPackages   []Package
 }
 
 func processOutput(params *processOutputParams) {
+	dummyPackages := map[string]bool{}
+	for _, p := range params.DummyPackages {
+		dummyPackages[p.ImportPath] = true
+	}
+
 	regexNoTests := regexp.MustCompile(`^\?\s+(.+)\s+\[no test files\]$`)
 	regexPackageSummary := regexp.MustCompile(`^(ok  \t|FAIL\t)`)
 	regexCoverageAny := regexp.MustCompile(`^coverage: `)
@@ -112,22 +118,30 @@ func processOutput(params *processOutputParams) {
 		}
 
 		var outLine string
-
-		if event.Test == "" && event.Action == "skip" {
-			pkg := event.Package
+		printSkipped := func(pkg string) {
 			pkgsNoTests = append(pkgsNoTests, pkg)
 			coverages = append(coverages, 0)
 
 			if params.FlagSkipEmpty {
-				continue
+				return
 			}
 
 			outLine = shColor("yellow:bold", "!") + " " + pkg
 			outLine += strings.Repeat(" ", maxPkgLen-len(pkg)) + "   " + shColor("gray", sf("%6s", "0.0%"))
 			outLine += "     " + shColor("yellow", "no tests")
+			lineOutTrimmed(outLine)
+		}
+
+		if event.Test == "" && event.Action == "skip" {
+			printSkipped(event.Package)
+			continue
 		}
 
 		if event.Test == "" && (event.Action == "pass" || event.Action == "fail") {
+			if event.Action == "pass" && dummyPackages[event.Package] {
+				printSkipped(event.Package)
+				continue
+			}
 			if event.Action == "pass" {
 				outLine = shColor("green", "✔ ") + shColor("reset:bold", event.Package)
 			} else {
