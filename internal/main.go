@@ -2,7 +2,6 @@ package internal
 
 import (
 	"fmt"
-	"log"
 	"strings"
 	"sync"
 	"time"
@@ -33,15 +32,21 @@ type TestEvent struct {
 	Output  string
 }
 
-func RunTests(opts RunTestsOpts) {
+func RunTests(opts RunTestsOpts) error {
 	color.NoColor = !opts.FlagColor
 	coverProfile := zvfb(opts.FlagCoverProfile, "./coverage.out")
 
 	// Get list of all packages in the test path
-	allPkgsStr := shCmd("go", shArgs{"list", opts.TestPath}, "")
+	allPkgsStr, err := shCmd("go", shArgs{"list", opts.TestPath}, "")
+	if err != nil {
+		return err
+	}
 	allPkgs := splitLines(allPkgsStr)
 
-	testPkgs, ignoredPkgs := excludePackages(allPkgs, opts.Excludes)
+	testPkgs, ignoredPkgs, err := excludePackages(allPkgs, opts.Excludes)
+	if err != nil {
+		return err
+	}
 
 	// function to inject that actually "prints" each line
 	lineOut := func(str ...string) { fmt.Println(strings.Join(str, " ")) }
@@ -76,14 +81,15 @@ func RunTests(opts RunTestsOpts) {
 	testArgs = sliceAppendIf(opts.FlagCoverProfile != "" || opts.FlagCoverReport, testArgs, "-coverprofile="+coverProfile)
 	testArgs = append(testArgs, "-json")
 	testArgs = append(testArgs, testPkgs...)
-	err := shJSONPipe("go", testArgs, "", goTestOutput)
+	err = shJSONPipe("go", testArgs, "", goTestOutput)
 	wg.Wait()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	// Open html coverage report
 	if opts.FlagCoverReport {
 		shCmd("go", shArgs{"tool", "cover", "-html=" + coverProfile}, "")
 	}
+	return nil
 }

@@ -16,7 +16,7 @@ import (
 type shArgs []string
 
 // shCmd runs a shell command with given args and returns the output
-func shCmd(prog string, args shArgs, stdIn string) string {
+func shCmd(prog string, args shArgs, stdIn string) (string, error) {
 	cmd := exec.Command(prog, args...)
 
 	cmd.Stdin = strings.NewReader(stdIn)
@@ -31,10 +31,10 @@ func shCmd(prog string, args shArgs, stdIn string) string {
 	if err != nil {
 		// print out the stdout back to stdout so we can debug
 		fmt.Fprintln(os.Stderr, stdErr.String())
-		log.Fatal(fmt.Errorf("failed to run %s: %w", prog, err))
+		return "", fmt.Errorf("failed to run %s: %w", prog, err)
 	}
 
-	return stdOut.String()
+	return stdOut.String(), nil
 }
 
 func shJSONPipe[T any](prog string, args shArgs, stdIn string, eventPipe chan<- T) error {
@@ -54,7 +54,7 @@ func shJSONPipe[T any](prog string, args shArgs, stdIn string, eventPipe chan<- 
 			if err == io.EOF {
 				break
 			}
-			log.Fatalf("reading shell output: %v", err)
+			return fmt.Errorf("reading shell output: %v", err)
 		}
 
 		eventPipe <- m

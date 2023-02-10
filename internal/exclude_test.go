@@ -54,7 +54,8 @@ func TestExclude(t *testing.T) {
 		tst := tst
 		t.Run(tst.name, func(t *testing.T) {
 			t.Parallel()
-			included, ignored := excludePackages(tst.packages, tst.excluded)
+			included, ignored, err := excludePackages(tst.packages, tst.excluded)
+			assert.NoError(t, err)
 			assert.Equal(t, tst.expectedIncluded, included)
 			assert.Equal(t, tst.expectedIgnored, ignored)
 		})

@@ -1,13 +1,13 @@
 package internal
 
 import (
-	"log"
+	"fmt"
 	"regexp"
 )
 
-func excludePackages(packages, excludes []string) ([]string, []string) {
+func excludePackages(packages, excludes []string) ([]string, []string, error) {
 	if len(excludes) == 0 {
-		return packages, nil
+		return packages, nil, nil
 	}
 
 	excludeRegexs := make([]*regexp.Regexp, 0, len(excludes))
@@ -18,7 +18,7 @@ func excludePackages(packages, excludes []string) ([]string, []string) {
 		}
 		regex, err := regexp.Compile("^" + exclude)
 		if err != nil {
-			log.Fatalf("cannot compile regex %q: %+v", exclude, regex)
+			return nil, nil, fmt.Errorf("cannot compile regex %q: %+v", exclude, regex)
 		}
 		excludeRegexs = append(excludeRegexs, regex)
 	}
@@ -37,5 +37,5 @@ func excludePackages(packages, excludes []string) ([]string, []string) {
 			excluded = append(excluded, pkg)
 		}
 	}
-	return included, excluded
+	return included, excluded, nil
 }

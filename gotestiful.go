@@ -42,6 +42,7 @@ package main
 
 import (
 	"flag"
+	"log"
 
 	gtf "github.com/alex-parra/gotestiful/internal"
 )
@@ -49,7 +50,10 @@ import (
 const version = "v0.1.4"
 
 func main() {
-	conf := gtf.GetConfig()
+	conf, err := gtf.GetConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	flagVersion := flag.Bool("version", false, "Gotestiful version: print version information")
 	flagColor := flag.Bool("color", conf.Color, "Colorize output: turn colorized output on/off")
@@ -74,10 +78,13 @@ func main() {
 		gtf.PrintVersion(version)
 
 	case testPath == "init":
-		gtf.InitConfig()
+		err := gtf.InitConfig()
+		if err != nil {
+			log.Fatal(err)
+		}
 
 	default:
-		gtf.RunTests(gtf.RunTestsOpts{
+		err := gtf.RunTests(gtf.RunTestsOpts{
 			TestPath:         testPath,
 			FlagColor:        *flagColor,
 			FlagCache:        *flagCache,
@@ -90,6 +97,9 @@ func main() {
 			FlagListEmpty:    *flagListEmpty,
 			Excludes:         conf.Exclude,
 		})
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 }
