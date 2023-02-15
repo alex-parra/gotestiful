@@ -175,7 +175,7 @@ func RunTests(opts RunTestsOpts) error {
 	goTestOutput := make(chan TestEvent)
 
 	var coverProfile string
-	if opts.FlagCoverReport {
+	if opts.FlagCoverReport || opts.FlagCoverProfile != "" {
 		coverProfile = zvfb(opts.FlagCoverProfile, "./coverage.out")
 	} else if opts.FlagFullCoverage {
 		newF, err := os.CreateTemp("", "coverage-*.out")

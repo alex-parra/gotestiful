@@ -3,7 +3,7 @@
   "cache": true,
   "cover": true,
   "report": false,
-  "coverProfile": "",
+  "coverProfile": "./coverage.out",
   "verbose": false,
   "listIgnored": false,
   "skipEmpty": true,
