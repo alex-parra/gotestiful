@@ -21,6 +21,7 @@ type config struct {
 	ListEmpty    bool     `json:"listEmpty"`
 	FullCoverage bool     `json:"fullCoverage"`
 	Exclude      []string `json:"exclude"`
+	TestOutput   string   `json:"testOutput"`
 }
 
 // Default config values

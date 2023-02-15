@@ -2,6 +2,7 @@ package internal
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -29,6 +30,7 @@ type RunTestsOpts struct {
 	FlagListEmpty    bool
 	FlagFullCoverage bool
 	Excludes         []string
+	FlagTestOutput   string
 }
 
 type TestEvent struct {
@@ -61,7 +63,7 @@ func initEmpty(testPath string, excludes []string) (newFiles []string, packages 
 			}
 			wg.Done()
 		}()
-		err := shJSONPipe("go", shArgs{"list", "-json", testPath}, "", pkgChan)
+		err := shJSONPipe("go", shArgs{"list", "-json", testPath}, "", pkgChan, io.Discard)
 		wg.Wait()
 		if err != nil {
 			return nil, nil, err
@@ -92,7 +94,7 @@ func initEmpty(testPath string, excludes []string) (newFiles []string, packages 
 		testArgs = append(testArgs, "-list", ".")
 		testArgs = append(testArgs, "-json")
 		testArgs = append(testArgs, testPkgs...)
-		err = shJSONPipe("go", testArgs, "", goListOutput)
+		err = shJSONPipe("go", testArgs, "", goListOutput, io.Discard)
 		wg.Wait()
 		if err != nil {
 			return nil, nil, err
@@ -204,6 +206,15 @@ func RunTests(opts RunTestsOpts) error {
 		wg.Done()
 	}()
 
+	testOut := io.Discard
+	if opts.FlagTestOutput != "" {
+		file, err := os.OpenFile(opts.FlagTestOutput, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o666)
+		if err != nil {
+			return err
+		}
+		testOut = file
+	}
+
 	// Compose and run 'go test ...'
 	lineOut(sf("\nTesting %d packages in '%s'\n", len(testPkgs), opts.TestPath))
 	testArgs := shArgs{"test"}
@@ -213,7 +224,7 @@ func RunTests(opts RunTestsOpts) error {
 	testArgs = sliceAppendIf(coverProfile != "", testArgs, "-coverprofile="+coverProfile)
 	testArgs = append(testArgs, "-json")
 	testArgs = append(testArgs, testPkgs...)
-	err = shJSONPipe("go", testArgs, "", goTestOutput)
+	err = shJSONPipe("go", testArgs, "", goTestOutput, testOut)
 	wg.Wait()
 	if err != nil {
 		if coverProfile != "" {

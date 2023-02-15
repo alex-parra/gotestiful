@@ -9,5 +9,6 @@
   "skipEmpty": true,
   "listEmpty": false,
   "exclude": [],
-  "fullCoverage": true
+  "fullCoverage": true,
+  "testOutput": "./test.out"
 }
