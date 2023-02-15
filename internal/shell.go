@@ -38,17 +38,22 @@ func shCmd(prog string, args shArgs, stdIn string) (string, error) {
 	return stdOut.String(), nil
 }
 
-func shJSONPipe[T any](prog string, args shArgs, stdIn string, eventPipe chan<- T) error {
+func shJSONPipe[T any](prog string, args shArgs, stdIn string, eventPipe chan<- T, copyOutput io.Writer) error {
 	defer close(eventPipe)
 
 	cmd := exec.Command(prog, args...)
-	stdout, _ := cmd.StdoutPipe()
-	err := cmd.Start()
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("failed to pipe %s: %w", prog, err)
+	}
+	err = cmd.Start()
 	if err != nil {
 		return fmt.Errorf("failed to run %s: %w", prog, err)
 	}
 
-	dec := json.NewDecoder(stdout)
+	pipedStdout := io.TeeReader(stdout, copyOutput)
+
+	dec := json.NewDecoder(pipedStdout)
 	for {
 		var m T
 		if err := dec.Decode(&m); err != nil {

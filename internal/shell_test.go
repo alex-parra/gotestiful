@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"io"
 	"sync"
 	"testing"
 
@@ -36,7 +37,7 @@ func TestShJSONPipe(t *testing.T) {
 		"Bar":"2"
 	}
 	{"Foo": "3", "Bar": "4"}
-	{"Foo":"5"}{"Bar": "6"}`}, "", c)
+	{"Foo":"5"}{"Bar": "6"}`}, "", c, io.Discard)
 	wg.Wait()
 
 	assert.Equal(t, out, []Inp{

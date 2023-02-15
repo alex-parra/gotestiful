@@ -66,6 +66,7 @@ func main() {
 	flagSkipEmpty := flag.Bool("skipempty", conf.SkipEmpty, "No tests omit: do not show packages with no tests in the output (affects coverage)")
 	flagListEmpty := flag.Bool("listempty", conf.ListEmpty, "No tests list: list packages with no tests (at the end)")
 	flagFullCoverage := flag.Bool("fullCoverage", conf.FullCoverage, "Count overall coverage including packages without tests. Takes longer (disables caching).")
+	flagTestOutput := flag.String("testoutput", conf.TestOutput, "Print JSON output of go test to the given file. Output format is same as go test with -json flag")
 	flag.Usage = gtf.PrintHelp
 	flag.Parse()
 
@@ -98,6 +99,7 @@ func main() {
 			FlagListEmpty:    *flagListEmpty,
 			FlagFullCoverage: *flagFullCoverage,
 			Excludes:         conf.Exclude,
+			FlagTestOutput:   *flagTestOutput,
 		})
 		if err != nil {
 			log.Fatal(err)
