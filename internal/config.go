@@ -36,6 +36,8 @@ var conf = config{
 	SkipEmpty: true,
 	// ListEmpty:    false,
 	Exclude: []string{},
+	// TestOutput: "",
+	// FullCoverage: false,
 }
 
 func GetConfig() (config, error) {
