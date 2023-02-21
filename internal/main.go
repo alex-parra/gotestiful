@@ -31,6 +31,8 @@ type RunTestsOpts struct {
 	FlagFullCoverage bool
 	Excludes         []string
 	FlagTestOutput   string
+
+	Azure AzureConf
 }
 
 type TestEvent struct {
@@ -74,6 +76,10 @@ func initEmpty(testPath string, excludes []string) (newFiles []string, packages 
 
 	{
 		testPkgs, _, err := excludePackages(allPkgs, excludes)
+
+		if err != nil {
+			return nil, nil, err
+		}
 
 		goListOutput := make(chan TestEvent)
 
@@ -186,6 +192,8 @@ func RunTests(opts RunTestsOpts) error {
 		coverProfile = newF.Name()
 	}
 
+	var failedTests []string
+
 	var wg sync.WaitGroup
 	wg.Add(1)
 
@@ -202,6 +210,7 @@ func RunTests(opts RunTestsOpts) error {
 			IndentSpaces:    2,
 			DummyPackages:   newPackages,
 			AverageCoverage: coverProfile == "",
+			FailedTests:     &failedTests,
 		})
 		wg.Done()
 	}()
@@ -229,16 +238,18 @@ func RunTests(opts RunTestsOpts) error {
 	if err != nil {
 		if coverProfile != "" {
 			// print coverage even in the case of error (as test failure is error here); ignore its own error
-			printCoverage(coverProfile, lineOut)
+			cov, _ := printCoverage(coverProfile, lineOut)
+			opts.Azure.sendAzureComment(cov, failedTests)
 		}
 		return err
 	}
 
 	if coverProfile != "" {
-		err = printCoverage(coverProfile, lineOut)
+		cov, err := printCoverage(coverProfile, lineOut)
 		if err != nil {
 			return err
 		}
+		opts.Azure.sendAzureComment(cov, failedTests)
 	}
 
 	// Open html coverage report
@@ -248,7 +259,7 @@ func RunTests(opts RunTestsOpts) error {
 	return nil
 }
 
-func printCoverage(path string, lineOut func(...string)) error {
+func printCoverage(path string, lineOut func(...string)) (float64, error) {
 	var coverage float64
 
 	// now read proper code coverage
@@ -270,12 +281,13 @@ func printCoverage(path string, lineOut func(...string)) error {
 
 	err := shPipe("go", shArgs{"tool", "cover", "-func", path}, "", goCoverOutput)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	chev := shColor("gray", "❯")
 	cover := sf("%.2f", coverage) + "%"
 
 	lineOut(sf("%s Coverage: %s", chev, shColor(coverageColor(coverage)+":bold", cover)))
-	return nil
+
+	return coverage, nil
 }
