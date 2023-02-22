@@ -20,9 +20,13 @@ type processOutputParams struct {
 	IndentSpaces    int
 	DummyPackages   []Package
 	AverageCoverage bool
+
+	FailedTests *[]string
 }
 
 func processOutput(params *processOutputParams) {
+	var failedTests []string
+
 	dummyPackages := map[string]bool{}
 	for _, p := range params.DummyPackages {
 		dummyPackages[p.ImportPath] = true
@@ -138,6 +142,10 @@ func processOutput(params *processOutputParams) {
 			continue
 		}
 
+		if event.Test != "" && event.Action == "fail" {
+			failedTests = append(failedTests, event.Test)
+		}
+
 		if event.Test == "" && (event.Action == "pass" || event.Action == "fail") {
 			if event.Action == "pass" && dummyPackages[event.Package] {
 				printSkipped(event.Package)
@@ -179,6 +187,10 @@ func processOutput(params *processOutputParams) {
 			}
 		}
 		lineOutTrimmed(outLine)
+	}
+
+	if params.FailedTests != nil {
+		*params.FailedTests = failedTests
 	}
 
 	params.LineOut()

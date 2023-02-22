@@ -67,6 +67,10 @@ func main() {
 	flagListEmpty := flag.Bool("listempty", conf.ListEmpty, "No tests list: list packages with no tests (at the end)")
 	flagFullCoverage := flag.Bool("fullCoverage", conf.FullCoverage, "Count overall coverage including packages without tests. Takes longer (disables caching).")
 	flagTestOutput := flag.String("testoutput", conf.TestOutput, "Print JSON output of go test to the given file. Output format is same as go test with -json flag")
+
+	flagAzureDevopsURL := flag.String("azureDevopsURL", "", "Add azure devops URL to send a request with comment to")
+	flagAzureDevopsAuthToken := flag.String("azureDevopsAuthToken", "", "Add azure devops auth token to send a request with comment to")
+
 	flag.Usage = gtf.PrintHelp
 	flag.Parse()
 
@@ -100,6 +104,11 @@ func main() {
 			FlagFullCoverage: *flagFullCoverage,
 			Excludes:         conf.Exclude,
 			FlagTestOutput:   *flagTestOutput,
+
+			Azure: gtf.AzureConf{
+				URL:  *flagAzureDevopsURL,
+				Auth: *flagAzureDevopsAuthToken,
+			},
 		})
 		if err != nil {
 			log.Fatal(err)
