@@ -47,7 +47,7 @@ import (
 	gtf "github.com/alex-parra/gotestiful/internal"
 )
 
-const version = "v1.0.0"
+const version = "v1.1.0"
 
 func main() {
 	conf, err := gtf.GetConfig()
