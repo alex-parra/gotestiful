@@ -1,9 +1,11 @@
 package internal
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -50,6 +52,127 @@ type Package struct {
 	Name       string
 }
 
+var ErrTestRunIgnore = errors.New("test run error")
+
+func RunTests(opts RunTestsOpts) error {
+	color.NoColor = !opts.FlagColor
+
+	// function to inject that actually "prints" each line
+	lineOut := func(str ...string) { fmt.Println(strings.Join(str, " ")) }
+
+	var newFiles []string
+	var newPackages []Package
+	if opts.FlagFullCoverage {
+		lineOut(sf("\nGenerating empty tests for full coverage in '%s'", opts.TestPath))
+
+		var err error
+		newFiles, newPackages, err = initEmpty(opts.TestPath, opts.Excludes)
+		if err != nil {
+			return err
+		}
+		defer func() {
+			for _, f := range newFiles {
+				os.Remove(f)
+			}
+		}()
+	}
+
+	// Get list of all packages in the test path
+	allPkgsStr, err := shCmd("go", shArgs{"list", opts.TestPath}, "")
+	if err != nil {
+		return err
+	}
+	allPkgs := splitLines(allPkgsStr)
+
+	testPkgs, ignoredPkgs, err := excludePackages(allPkgs, opts.Excludes)
+	if err != nil {
+		return err
+	}
+
+	var failedTests []string
+
+	var coverProfile string
+	if opts.FlagCoverReport || opts.FlagFullCoverage {
+		coverProfile = opts.FlagCoverProfile
+		// If empty use throw-away coverage profile
+		if coverProfile == "" {
+			tempCoverProfile, err := os.CreateTemp("", "coverage-*.out")
+			if err != nil {
+				return err
+			}
+			defer os.Remove(tempCoverProfile.Name())
+			coverProfile = tempCoverProfile.Name()
+		}
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	goTestOutput := make(chan TestEvent) // channel to receive each 'go test' stdout line
+
+	go func() {
+		processOutput(&processOutputParams{
+			OutputChannel:   goTestOutput,
+			LineOut:         lineOut,
+			ToTestPackages:  testPkgs,
+			IgnoredPackages: ignoredPkgs,
+			FlagVerbose:     opts.FlagVerbose,
+			FlagSkipEmpty:   opts.FlagSkipEmpty,
+			FlagListEmpty:   opts.FlagListEmpty,
+			FlagListIgnored: opts.FlagListIgnored,
+			IndentSpaces:    2,
+			DummyPackages:   newPackages,
+			AverageCoverage: coverProfile == "",
+			FailedTests:     &failedTests,
+		})
+		wg.Done()
+	}()
+
+	testOut := io.Discard
+	if opts.FlagTestOutput != "" {
+		file, err := os.OpenFile(opts.FlagTestOutput, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o666)
+		if err != nil {
+			return err
+		}
+		testOut = file
+	}
+
+	// Compose and run 'go test ...'
+	lineOut(sf("\nTesting %d packages in '%s'\n", len(testPkgs), opts.TestPath))
+	testArgs := shArgs{"test"}
+	testArgs = sliceAppendIf(opts.FlagVerbose, testArgs, "-v")
+	testArgs = sliceAppendIf(!opts.FlagCache, testArgs, "-count=1")
+	testArgs = sliceAppendIf(opts.FlagCover, testArgs, "-cover")
+	testArgs = sliceAppendIf(coverProfile != "", testArgs, "-coverprofile="+coverProfile)
+	testArgs = append(testArgs, "-json")
+	testArgs = append(testArgs, testPkgs...)
+	testErr := shJSONPipe("go", testArgs, "", goTestOutput, testOut)
+	wg.Wait()
+
+	var covErr error
+	if opts.FlagFullCoverage {
+		cov, covErr := printCoverage(coverProfile, lineOut)
+		if covErr == nil {
+			opts.Azure.sendAzureComment(cov, failedTests)
+		}
+	}
+
+	if testErr != nil {
+		return ErrTestRunIgnore
+	}
+
+	if covErr != nil {
+		return covErr
+	}
+
+	// Open html coverage report
+	if opts.FlagCoverReport {
+		shCmd("go", shArgs{"tool", "cover", "-html=" + coverProfile}, "")
+	}
+
+	return nil
+}
+
+// Add dummy test files to packages with no tests
 func initEmpty(testPath string, excludes []string) (newFiles []string, packages []Package, err error) {
 	allPkgs := []string{}
 	allPkgsMap := map[string]Package{}
@@ -141,139 +264,19 @@ func initEmpty(testPath string, excludes []string) (newFiles []string, packages 
 	return newFiles, packages, nil
 }
 
-func RunTests(opts RunTestsOpts) error {
-
-	// function to inject that actually "prints" each line
-	lineOut := func(str ...string) { fmt.Println(strings.Join(str, " ")) }
-
-	var newFiles []string
-	var newPackages []Package
-	if opts.FlagFullCoverage {
-		lineOut(sf("\nGenerating empty tests for full coverage in '%s'", opts.TestPath))
-
-		var err error
-		newFiles, newPackages, err = initEmpty(opts.TestPath, opts.Excludes)
-		if err != nil {
-			return err
-		}
-		defer func() {
-			for _, f := range newFiles {
-				os.Remove(f)
-			}
-		}()
-	}
-
-	color.NoColor = !opts.FlagColor
-
-	// Get list of all packages in the test path
-	allPkgsStr, err := shCmd("go", shArgs{"list", opts.TestPath}, "")
-	if err != nil {
-		return err
-	}
-	allPkgs := splitLines(allPkgsStr)
-
-	testPkgs, ignoredPkgs, err := excludePackages(allPkgs, opts.Excludes)
-	if err != nil {
-		return err
-	}
-
-	// channel to receive each 'go test' stdout line
-	goTestOutput := make(chan TestEvent)
-
-	var coverProfile string
-	if opts.FlagCoverReport || opts.FlagCoverProfile != "" {
-		coverProfile = zvfb(opts.FlagCoverProfile, "./coverage.out")
-	} else if opts.FlagFullCoverage {
-		newF, err := os.CreateTemp("", "coverage-*.out")
-		if err != nil {
-			return err
-		}
-		defer os.Remove(newF.Name())
-		coverProfile = newF.Name()
-	}
-
-	var failedTests []string
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	go func() {
-		processOutput(&processOutputParams{
-			OutputChannel:   goTestOutput,
-			LineOut:         lineOut,
-			ToTestPackages:  testPkgs,
-			IgnoredPackages: ignoredPkgs,
-			FlagVerbose:     opts.FlagVerbose,
-			FlagSkipEmpty:   opts.FlagSkipEmpty,
-			FlagListEmpty:   opts.FlagListEmpty,
-			FlagListIgnored: opts.FlagListIgnored,
-			IndentSpaces:    2,
-			DummyPackages:   newPackages,
-			AverageCoverage: coverProfile == "",
-			FailedTests:     &failedTests,
-		})
-		wg.Done()
-	}()
-
-	testOut := io.Discard
-	if opts.FlagTestOutput != "" {
-		file, err := os.OpenFile(opts.FlagTestOutput, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o666)
-		if err != nil {
-			return err
-		}
-		testOut = file
-	}
-
-	// Compose and run 'go test ...'
-	lineOut(sf("\nTesting %d packages in '%s'\n", len(testPkgs), opts.TestPath))
-	testArgs := shArgs{"test"}
-	testArgs = sliceAppendIf(opts.FlagVerbose, testArgs, "-v")
-	testArgs = sliceAppendIf(!opts.FlagCache, testArgs, "-count=1")
-	testArgs = sliceAppendIf(opts.FlagCover, testArgs, "-cover")
-	testArgs = sliceAppendIf(coverProfile != "", testArgs, "-coverprofile="+coverProfile)
-	testArgs = append(testArgs, "-json")
-	testArgs = append(testArgs, testPkgs...)
-	err = shJSONPipe("go", testArgs, "", goTestOutput, testOut)
-	wg.Wait()
-	if err != nil {
-		if coverProfile != "" {
-			// print coverage even in the case of error (as test failure is error here); ignore its own error
-			cov, _ := printCoverage(coverProfile, lineOut)
-			opts.Azure.sendAzureComment(cov, failedTests)
-		}
-		return err
-	}
-
-	if coverProfile != "" {
-		cov, err := printCoverage(coverProfile, lineOut)
-		if err != nil {
-			return err
-		}
-		opts.Azure.sendAzureComment(cov, failedTests)
-	}
-
-	// Open html coverage report
-	if opts.FlagCoverReport {
-		shCmd("go", shArgs{"tool", "cover", "-html=" + coverProfile}, "")
-	}
-	return nil
-}
-
 func printCoverage(path string, lineOut func(...string)) (float64, error) {
-	var coverage float64
-
-	// now read proper code coverage
+	regexTotalCov := regexp.MustCompile(`^total:\s+\(statements\)\s+(\d{1,3}\.\d{1,2}%)`)
 	goCoverOutput := make(chan string)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
 
+	var coverage float64
 	go func() {
 		for line := range goCoverOutput {
 			if strings.HasPrefix(line, "total:") {
-				// a bit of a hack but it works
-				line = strings.Trim(line, "total: (statements) %\t\n")
-				coverage, _ = strconv.ParseFloat(line, 64)
+				cov := regexTotalCov.ReplaceAllString(line, "$1")
+				coverage, _ = strconv.ParseFloat(strings.Trim(cov, "% \t\n"), 64)
 			}
 		}
 		wg.Done()
@@ -284,10 +287,9 @@ func printCoverage(path string, lineOut func(...string)) (float64, error) {
 		return 0, err
 	}
 
-	chev := shColor("gray", "❯")
-	cover := sf("%.2f", coverage) + "%"
-
-	lineOut(sf("%s Coverage: %s", chev, shColor(coverageColor(coverage)+":bold", cover)))
+	covColor := coverageColor(coverage) + ":bold"
+	covFormatted := sf("%.2f", coverage) + "%"
+	lineOut(sf("%s Coverage: %s", shColor("gray", "❯"), shColor(covColor, covFormatted)))
 
 	return coverage, nil
 }

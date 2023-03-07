@@ -41,8 +41,10 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"log"
+	"os"
 
 	gtf "github.com/alex-parra/gotestiful/internal"
 )
@@ -110,7 +112,11 @@ func main() {
 				Auth: *flagAzureDevopsAuthToken,
 			},
 		})
-		if err != nil {
+
+		switch {
+		case errors.Is(err, gtf.ErrTestRunIgnore):
+			os.Exit(1) // Known error due to tests failing. No need to log.
+		case err != nil:
 			log.Fatal(err)
 		}
 	}

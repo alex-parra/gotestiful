@@ -53,7 +53,7 @@ func (az AzureConf) sendAzureComment(coverage float64, failedTests []string) err
 		return err
 	}
 
-	req, err := http.NewRequest("POST", az.URL, bytes.NewReader(dat))
+	req, err := http.NewRequest(http.MethodPost, az.URL, bytes.NewReader(dat))
 	if err != nil {
 		return err
 	}

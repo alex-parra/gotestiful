@@ -63,9 +63,8 @@ func TestProcessOutput(t *testing.T) {
 		assert.Equal(t, []string{
 			"✔ tst              0.266s",
 			"",
-			"❯ Average Coverage: 0.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
-			"",
+			"❯ Coverage: 0.00%   [average]   (set flag 'fullCoverage' for accurate calculation)",
 		}, out)
 	})
 
@@ -86,16 +85,15 @@ func TestProcessOutput(t *testing.T) {
 		assert.Equal(t, []string{
 			"✔ tst     0.0%     0.266s",
 			"",
-			"❯ Average Coverage: 0.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
-			"",
+			"❯ Coverage: 0.00%   [average]   (set flag 'fullCoverage' for accurate calculation)",
 		}, out)
 	})
 
 	// with the new logic, skipped are written only on verbose
 	t.Run("one skipped", func(t *testing.T) {
 		out := runTests(
-			&processOutputParams{ToTestPackages: []string{"tst"}},
+			&processOutputParams{ToTestPackages: []string{"tst"}, FlagVerbose: true},
 
 			TestEvent{Action: "run", Package: "tst", Test: "TestOther"},
 
@@ -113,10 +111,10 @@ func TestProcessOutput(t *testing.T) {
 			"≋ TestOther     skipped",
 			"  code_test.go:10: some reason to skip",
 			"✔ tst              0.266s",
+			"-------------------------",
 			"",
-			"❯ Average Coverage: 0.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
-			"",
+			"❯ Coverage: 0.00%   [average]   (set flag 'fullCoverage' for accurate calculation)",
 		}, out)
 	})
 
@@ -144,9 +142,8 @@ func TestProcessOutput(t *testing.T) {
 			"  code_test.go:12: but a test ain't one",
 			"◼ tst              0.308s",
 			"",
-			"❯ Average Coverage: 0.00%",
 			"❯ Pkgs: tested: 1    failed: 1    noTests: 0    excluded: 0",
-			"",
+			"❯ Coverage: 0.00%   [average]   (set flag 'fullCoverage' for accurate calculation)",
 		}, out)
 	})
 
@@ -161,9 +158,8 @@ func TestProcessOutput(t *testing.T) {
 		assert.Equal(t, []string{
 			"! tst     0.0%     no tests",
 			"",
-			"❯ Average Coverage: 0.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 1    excluded: 0",
-			"",
+			"❯ Coverage: 0.00%   [average]   (set flag 'fullCoverage' for accurate calculation)",
 		}, out)
 	})
 
@@ -177,9 +173,8 @@ func TestProcessOutput(t *testing.T) {
 
 		assert.Equal(t, []string{
 			"",
-			"❯ Average Coverage: 0.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 1    excluded: 0",
-			"",
+			"❯ Coverage: 0.00%   [average]   (set flag 'fullCoverage' for accurate calculation)",
 		}, out)
 	})
 
@@ -194,8 +189,8 @@ func TestProcessOutput(t *testing.T) {
 		assert.Equal(t, []string{
 			"! tst     0.0%     no tests",
 			"",
-			"❯ Average Coverage: 0.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 1    excluded: 0",
+			"❯ Coverage: 0.00%   [average]   (set flag 'fullCoverage' for accurate calculation)",
 			"",
 			"Packages with no tests:",
 			"- tst",
@@ -220,9 +215,8 @@ func TestProcessOutput(t *testing.T) {
 		assert.Equal(t, []string{
 			"✔ tst    50.0%     0.186s",
 			"",
-			"❯ Average Coverage: 50.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
-			"",
+			"❯ Coverage: 50.00%   [average]   (set flag 'fullCoverage' for accurate calculation)",
 		}, out)
 	})
 
@@ -244,13 +238,12 @@ func TestProcessOutput(t *testing.T) {
 		assert.Equal(t, []string{
 			"✔ tst        -     no statements",
 			"",
-			"❯ Average Coverage: 0.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
-			"",
+			"❯ Coverage: 0.00%   [average]   (set flag 'fullCoverage' for accurate calculation)",
 		}, out)
 	})
 
-	t.Run("one test fail, one succseccful, no verbose, coverage", func(t *testing.T) {
+	t.Run("one test fail, one successful, no verbose, coverage", func(t *testing.T) {
 		out := runTests(
 			&processOutputParams{ToTestPackages: []string{"tst"}},
 
@@ -281,13 +274,12 @@ func TestProcessOutput(t *testing.T) {
 			"  code_test.go:12: but a test ain't one",
 			"◼ tst    50.0%     0.108s",
 			"",
-			"❯ Average Coverage: 50.00%",
 			"❯ Pkgs: tested: 1    failed: 1    noTests: 0    excluded: 0",
-			"",
+			"❯ Coverage: 50.00%   [average]   (set flag 'fullCoverage' for accurate calculation)",
 		}, out)
 	})
 
-	t.Run("one test fail, one succseccful, verbose, coverage", func(t *testing.T) {
+	t.Run("one test fail, one successful, verbose, coverage", func(t *testing.T) {
 		out := runTests(
 			&processOutputParams{ToTestPackages: []string{"tst"}, FlagVerbose: true},
 
@@ -322,9 +314,9 @@ func TestProcessOutput(t *testing.T) {
 			"◼ tst    50.0%     0.108s",
 			"-------------------------",
 			"",
-			"❯ Average Coverage: 50.00%",
 			"❯ Pkgs: tested: 1    failed: 1    noTests: 0    excluded: 0",
-			""}, out)
+			"❯ Coverage: 50.00%   [average]   (set flag 'fullCoverage' for accurate calculation)",
+		}, out)
 	})
 
 	t.Run("ignored, no list", func(t *testing.T) {
@@ -345,9 +337,8 @@ func TestProcessOutput(t *testing.T) {
 		assert.Equal(t, []string{
 			"✔ tst    50.0%     0.186s",
 			"",
-			"❯ Average Coverage: 50.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 1",
-			"",
+			"❯ Coverage: 50.00%   [average]   (set flag 'fullCoverage' for accurate calculation)",
 		}, out)
 	})
 
@@ -369,8 +360,8 @@ func TestProcessOutput(t *testing.T) {
 		assert.Equal(t, []string{
 			"✔ tst    50.0%     0.186s",
 			"",
-			"❯ Average Coverage: 50.00%",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 1",
+			"❯ Coverage: 50.00%   [average]   (set flag 'fullCoverage' for accurate calculation)",
 			"",
 			"Packages ignored:",
 			"- tst/ignored",

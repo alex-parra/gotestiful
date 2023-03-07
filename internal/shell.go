@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -30,9 +31,8 @@ func shCmd(prog string, args shArgs, stdIn string) (string, error) {
 
 	err := cmd.Run()
 	if err != nil {
-		// print out the stdout back to stdout so we can debug
 		fmt.Fprintln(os.Stderr, stdErr.String())
-		return "", fmt.Errorf("failed to run %s: %w", prog, err)
+		return "", fmt.Errorf("failed to run %s", prog)
 	}
 
 	return stdOut.String(), nil
@@ -46,9 +46,13 @@ func shJSONPipe[T any](prog string, args shArgs, stdIn string, eventPipe chan<- 
 	if err != nil {
 		return fmt.Errorf("failed to pipe %s: %w", prog, err)
 	}
+
+	var stdErr bytes.Buffer
+	cmd.Stderr = &stdErr
+
 	err = cmd.Start()
 	if err != nil {
-		return fmt.Errorf("failed to run %s: %w", prog, err)
+		return fmt.Errorf("failed to run %s", prog)
 	}
 
 	pipedStdout := io.TeeReader(stdout, copyOutput)
@@ -57,10 +61,10 @@ func shJSONPipe[T any](prog string, args shArgs, stdIn string, eventPipe chan<- 
 	for {
 		var m T
 		if err := dec.Decode(&m); err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
-			return fmt.Errorf("reading shell output: %v", err)
+			return fmt.Errorf("reading shell output: %w", err)
 		}
 
 		eventPipe <- m
@@ -69,7 +73,8 @@ func shJSONPipe[T any](prog string, args shArgs, stdIn string, eventPipe chan<- 
 	err = cmd.Wait()
 
 	if err != nil {
-		return fmt.Errorf("failed to run %s: %w", prog, err)
+		fmt.Fprintln(os.Stderr, stdErr.String())
+		return fmt.Errorf("failed to run %s", prog)
 	}
 	return nil
 }
@@ -101,7 +106,7 @@ func shPipe(prog string, args shArgs, stdIn string, pipeLine chan<- string) erro
 	close(pipeLine)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, stdErr.String())
-		return fmt.Errorf("failed to run %s: %w", prog, err)
+		return fmt.Errorf("failed to run %s", prog)
 	}
 	return nil
 }
