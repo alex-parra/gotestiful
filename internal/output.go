@@ -18,12 +18,12 @@ type processOutputParams struct {
 	LineOut         func(str ...string)
 	ToTestPackages  []string
 	IgnoredPackages []string
+	NoTestsPackages []Package
 	FlagVerbose     bool
 	FlagSkipEmpty   bool
 	FlagListEmpty   bool
 	FlagListIgnored bool
 	IndentSpaces    int
-	DummyPackages   []Package
 	CoverProfile    string
 	FailedTests     *[]string
 	TotalCoverage   *float64
@@ -53,9 +53,9 @@ func processOutput(params *processOutputParams) {
 		maxPkgLen = ifelse(maxPkgLen < pkglen, pkglen, maxPkgLen)
 	}
 
-	dummyPackages := map[string]bool{}
-	for _, p := range params.DummyPackages {
-		dummyPackages[p.ImportPath] = true
+	noTestsPkgsMap := map[string]bool{}
+	for _, p := range params.NoTestsPackages {
+		noTestsPkgsMap[p.ImportPath] = true
 	}
 
 	lineOutTrimmed := func(s string) {
@@ -68,7 +68,7 @@ func processOutput(params *processOutputParams) {
 		}
 	}
 
-	printSkipped := func(pkg string) {
+	printNoTestPkg := func(pkg string) {
 		pkgsNoTests = append(pkgsNoTests, pkg)
 
 		if !params.FlagSkipEmpty {
@@ -132,15 +132,20 @@ func processOutput(params *processOutputParams) {
 				testOutLine = shColor("whitesmoke", testOutLine)
 
 				if event.Test != "" {
-					// we need to save some lines so we can print them later
-					testOutputLines[event.Test] = append(testOutputLines[event.Test], testOutLine)
+					// if TestSummary already printed this can be printed too
+					if mapHasKey(failedTests, event.Test) {
+						lineOutTrimmed(testOutLine)
+
+					} else { // save to print later
+						testOutputLines[event.Test] = append(testOutputLines[event.Test], testOutLine)
+					}
 				}
 			}
 		}
 
 		// Print no test packages
-		if event.Test == "" && (event.Action == "skip" || (event.Action == "pass" && dummyPackages[event.Package])) {
-			printSkipped(event.Package)
+		if event.Test == "" && (event.Action == "skip" || (event.Action == "pass" && noTestsPkgsMap[event.Package])) {
+			printNoTestPkg(event.Package)
 			continue
 		}
 
