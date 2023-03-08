@@ -3,12 +3,12 @@
   "cache": true,
   "cover": true,
   "report": false,
-  "coverProfile": "./coverage.out",
+  "coverProfile": "",
   "verbose": false,
   "listIgnored": false,
   "skipEmpty": true,
   "listEmpty": false,
   "exclude": [],
-  "fullCoverage": true,
-  "testOutput": "./test.out"
+  "fullCoverage": false,
+  "testOutput": ""
 }
