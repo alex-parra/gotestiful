@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/http/httputil"
 )
 
 type AzureBody struct {
@@ -26,6 +25,7 @@ type AzureConf struct {
 func makeComment(coverage float64, badTests []string) string {
 	coverageComment := "Total coverage is " + sf("%.2f", coverage) + "%"
 	testComment := "All tests are successful. 💪\n\n"
+
 	if len(badTests) != 0 {
 		testComment = "Test failed. 🙅 \n\n Failed tests:\n\n"
 		testComment += "|Test name|\n|--------|\n"
@@ -34,6 +34,7 @@ func makeComment(coverage float64, badTests []string) string {
 		}
 		testComment += "\n"
 	}
+
 	return testComment + coverageComment
 }
 
@@ -41,6 +42,7 @@ func (az AzureConf) sendAzureComment(coverage float64, failedTests []string) err
 	if az.URL == "" {
 		return nil
 	}
+
 	dat, err := json.Marshal(AzureBody{
 		Status: 2,
 		Comments: []AzureComment{{
@@ -58,12 +60,9 @@ func (az AzureConf) sendAzureComment(coverage float64, failedTests []string) err
 		return err
 	}
 
-	fmt.Println("will do request")
 	req.Header.Add("Authorization", "Bearer "+az.Auth)
 	req.Header.Set("Content-Type", "application/json")
 
-	dump, _ := httputil.DumpRequestOut(req, true)
-	fmt.Printf("Request: %s\n", dump)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		fmt.Printf("Error: %+v", err)
@@ -72,7 +71,5 @@ func (az AzureConf) sendAzureComment(coverage float64, failedTests []string) err
 
 	defer resp.Body.Close()
 
-	dump, _ = httputil.DumpResponse(resp, true)
-	fmt.Printf("Response: %s\n", dump)
 	return nil
 }

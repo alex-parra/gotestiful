@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -60,37 +58,28 @@ func RunTests(opts RunTestsOpts) error {
 	// function to inject that actually "prints" each line
 	lineOut := func(str ...string) { fmt.Println(strings.Join(str, " ")) }
 
+	// Get packages to test
+	testPkgsMap, testPkgs, ignoredPkgs, err := getPackages(opts.TestPath, opts.Excludes)
+	if err != nil {
+		return err
+	}
+
+	// Create blank test files in no-tests packages (needed for fullCoverage)
 	var newFiles []string
 	var newPackages []Package
 	if opts.FlagFullCoverage {
 		lineOut(sf("\nGenerating empty tests for full coverage in '%s'", opts.TestPath))
 
 		var err error
-		newFiles, newPackages, err = initEmpty(opts.TestPath, opts.Excludes)
+		newFiles, newPackages, err = fixPkgsWithNoTests(testPkgsMap, testPkgs)
 		if err != nil {
 			return err
 		}
-		defer func() {
-			for _, f := range newFiles {
-				os.Remove(f)
-			}
-		}()
+
+		defer deleteFiles(&newFiles)
 	}
 
-	// Get list of all packages in the test path
-	allPkgsStr, err := shCmd("go", shArgs{"list", opts.TestPath}, "")
-	if err != nil {
-		return err
-	}
-	allPkgs := splitLines(allPkgsStr)
-
-	testPkgs, ignoredPkgs, err := excludePackages(allPkgs, opts.Excludes)
-	if err != nil {
-		return err
-	}
-
-	var failedTests []string
-
+	// Determine cover-profile file name
 	var coverProfile string
 	if opts.FlagCoverReport || opts.FlagFullCoverage {
 		coverProfile = opts.FlagCoverProfile
@@ -107,7 +96,10 @@ func RunTests(opts RunTestsOpts) error {
 
 	var wg sync.WaitGroup
 	wg.Add(1)
+
 	goTestOutput := make(chan TestEvent) // channel to receive each 'go test' stdout line
+	var failedTests []string
+	var totalCoverage float64
 
 	go func() {
 		processOutput(&processOutputParams{
@@ -120,9 +112,10 @@ func RunTests(opts RunTestsOpts) error {
 			FlagListEmpty:   opts.FlagListEmpty,
 			FlagListIgnored: opts.FlagListIgnored,
 			IndentSpaces:    2,
-			DummyPackages:   newPackages,
-			AverageCoverage: coverProfile == "",
+			NoTestsPackages: newPackages,
+			CoverProfile:    coverProfile,
 			FailedTests:     &failedTests,
+			TotalCoverage:   &totalCoverage,
 		})
 		wg.Done()
 	}()
@@ -148,20 +141,11 @@ func RunTests(opts RunTestsOpts) error {
 	testErr := shJSONPipe("go", testArgs, "", goTestOutput, testOut)
 	wg.Wait()
 
-	var covErr error
-	if opts.FlagFullCoverage {
-		cov, covErr := printCoverage(coverProfile, lineOut)
-		if covErr == nil {
-			opts.Azure.sendAzureComment(cov, failedTests)
-		}
-	}
+	// Publish Azure Coverage PR comment
+	opts.Azure.sendAzureComment(totalCoverage, failedTests)
 
 	if testErr != nil {
 		return ErrTestRunIgnore
-	}
-
-	if covErr != nil {
-		return covErr
 	}
 
 	// Open html coverage report
@@ -172,87 +156,83 @@ func RunTests(opts RunTestsOpts) error {
 	return nil
 }
 
-// Add dummy test files to packages with no tests
-func initEmpty(testPath string, excludes []string) (newFiles []string, packages []Package, err error) {
+// Helpers --------------
+
+func getPackages(testPath string, excludes []string) (map[string]Package, []string, []string, error) {
 	allPkgs := []string{}
 	allPkgsMap := map[string]Package{}
 
-	{
-		pkgChan := make(chan Package)
-		var wg sync.WaitGroup
-		wg.Add(1)
-		go func() {
-			for p := range pkgChan {
-				allPkgs = append(allPkgs, p.ImportPath)
-				allPkgsMap[p.ImportPath] = p
-			}
-			wg.Done()
-		}()
-		err := shJSONPipe("go", shArgs{"list", "-json", testPath}, "", pkgChan, io.Discard)
-		wg.Wait()
-		if err != nil {
-			return nil, nil, err
+	// Load all packages
+	pkgChan := make(chan Package)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		for p := range pkgChan {
+			allPkgs = append(allPkgs, p.ImportPath)
+			allPkgsMap[p.ImportPath] = p
 		}
-	}
-
-	skippedPkgs := []string{}
-
-	{
-		testPkgs, _, err := excludePackages(allPkgs, excludes)
-
-		if err != nil {
-			return nil, nil, err
-		}
-
-		goListOutput := make(chan TestEvent)
-
-		var wg sync.WaitGroup
-		wg.Add(1)
-
-		go func() {
-			for o := range goListOutput {
-				if o.Action == "skip" && o.Test == "" {
-					skippedPkgs = append(skippedPkgs, o.Package)
-				}
-			}
-
-			wg.Done()
-		}()
-
-		testArgs := shArgs{"test"}
-		testArgs = append(testArgs, "-list", ".")
-		testArgs = append(testArgs, "-json")
-		testArgs = append(testArgs, testPkgs...)
-		err = shJSONPipe("go", testArgs, "", goListOutput, io.Discard)
-		wg.Wait()
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-
-	defer func() {
-		if err != nil {
-			for _, f := range newFiles {
-				os.Remove(f)
-			}
-		}
+		wg.Done()
 	}()
 
-	for _, importPath := range skippedPkgs {
-		p, ok := allPkgsMap[importPath]
-		if !ok {
-			return nil, nil, fmt.Errorf("package %q not found in map", importPath)
+	err := shJSONPipe("go", shArgs{"list", "-json", testPath}, "", pkgChan, io.Discard)
+	wg.Wait()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	// Exclude packages to ignore
+	pkgsToTest, pkgsIgnored, err := excludePackages(allPkgs, excludes)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	// Build packages to test map
+	pkgsToTestMap := map[string]Package{}
+	for _, pkg := range pkgsToTest {
+		pkgsToTestMap[pkg] = allPkgsMap[pkg]
+	}
+
+	return pkgsToTestMap, pkgsToTest, pkgsIgnored, nil
+}
+
+// "Eliminate" no-tests pakages by creating blank test file in them
+func fixPkgsWithNoTests(pkgsMap map[string]Package, pkgs []string) (newFiles []string, packages []Package, err error) {
+	noTestsPkgs := []string{}
+	goListOutput := make(chan TestEvent)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		for o := range goListOutput {
+			if o.Action == "skip" && o.Test == "" {
+				noTestsPkgs = append(noTestsPkgs, o.Package)
+			}
 		}
 
-		// this is all that's need to be printed to be a valid test
-		textToWrite := "package " + p.Name + "\n"
+		wg.Done()
+	}()
+
+	testArgs := shArgs{"test"}
+	testArgs = append(testArgs, "-list", ".")
+	testArgs = append(testArgs, "-json")
+	testArgs = append(testArgs, pkgs...)
+	err = shJSONPipe("go", testArgs, "", goListOutput, io.Discard)
+	wg.Wait()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Create blank test file in each no-test package
+	for _, pkg := range noTestsPkgs {
+		p := pkgsMap[pkg]
 
 		file, err := os.CreateTemp(p.Dir, "dummy_*_test.go")
 		if err != nil {
 			return nil, nil, err
 		}
 
-		// we know we can write to dummy_test, because there is no test in the package
+		textToWrite := fmt.Sprintf("package %s\n", p.Name) // all that's need to be a valid test
 		err = os.WriteFile(file.Name(), []byte(textToWrite), 0o666)
 		if err != nil {
 			return nil, nil, err
@@ -261,35 +241,6 @@ func initEmpty(testPath string, excludes []string) (newFiles []string, packages 
 		newFiles = append(newFiles, file.Name())
 		packages = append(packages, p)
 	}
+
 	return newFiles, packages, nil
-}
-
-func printCoverage(path string, lineOut func(...string)) (float64, error) {
-	regexTotalCov := regexp.MustCompile(`^total:\s+\(statements\)\s+(\d{1,3}\.\d{1,2}%)`)
-	goCoverOutput := make(chan string)
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	var coverage float64
-	go func() {
-		for line := range goCoverOutput {
-			if strings.HasPrefix(line, "total:") {
-				cov := regexTotalCov.ReplaceAllString(line, "$1")
-				coverage, _ = strconv.ParseFloat(strings.Trim(cov, "% \t\n"), 64)
-			}
-		}
-		wg.Done()
-	}()
-
-	err := shPipe("go", shArgs{"tool", "cover", "-func", path}, "", goCoverOutput)
-	if err != nil {
-		return 0, err
-	}
-
-	covColor := coverageColor(coverage) + ":bold"
-	covFormatted := sf("%.2f", coverage) + "%"
-	lineOut(sf("%s Coverage: %s", shColor("gray", "❯"), shColor(covColor, covFormatted)))
-
-	return coverage, nil
 }

@@ -34,3 +34,9 @@ func readFile(filePath string) ([]byte, error) {
 
 	return fileBytes, nil
 }
+
+func deleteFiles(files *[]string) {
+	for _, f := range *files {
+		os.Remove(f)
+	}
+}

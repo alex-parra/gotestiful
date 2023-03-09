@@ -1,13 +1,16 @@
 package internal
 
 import (
+	"bufio"
 	"fmt"
+	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode"
 
-	"golang.org/x/exp/slices"
+	"golang.org/x/exp/maps"
 )
 
 type processOutputParams struct {
@@ -15,15 +18,15 @@ type processOutputParams struct {
 	LineOut         func(str ...string)
 	ToTestPackages  []string
 	IgnoredPackages []string
+	NoTestsPackages []Package
 	FlagVerbose     bool
 	FlagSkipEmpty   bool
 	FlagListEmpty   bool
 	FlagListIgnored bool
 	IndentSpaces    int
-	DummyPackages   []Package
-	AverageCoverage bool
-
-	FailedTests *[]string
+	CoverProfile    string
+	FailedTests     *[]string
+	TotalCoverage   *float64
 }
 
 var regexNoTests = regexp.MustCompile(`^\?\s+(.+)\s+\[no test files\]$`)
@@ -39,7 +42,7 @@ var regexTestSkip = regexp.MustCompile(`^\s*--- SKIP: `)
 func processOutput(params *processOutputParams) {
 	pkgsNoTests := []string{}
 	pkgsFailed := []string{}
-	failedTests := []string{}
+	failedTests := map[string]bool{}
 	coverages := []float64{}
 	testOutputLines := map[string][]string{}
 	prevCoverages := map[string]string{}
@@ -50,9 +53,9 @@ func processOutput(params *processOutputParams) {
 		maxPkgLen = ifelse(maxPkgLen < pkglen, pkglen, maxPkgLen)
 	}
 
-	dummyPackages := map[string]bool{}
-	for _, p := range params.DummyPackages {
-		dummyPackages[p.ImportPath] = true
+	noTestsPkgsMap := map[string]bool{}
+	for _, p := range params.NoTestsPackages {
+		noTestsPkgsMap[p.ImportPath] = true
 	}
 
 	lineOutTrimmed := func(s string) {
@@ -65,7 +68,7 @@ func processOutput(params *processOutputParams) {
 		}
 	}
 
-	printSkipped := func(pkg string) {
+	printNoTestPkg := func(pkg string) {
 		pkgsNoTests = append(pkgsNoTests, pkg)
 
 		if !params.FlagSkipEmpty {
@@ -101,8 +104,9 @@ func processOutput(params *processOutputParams) {
 
 			if regexTestSummary.MatchString(testOutLine) {
 				isFail := strings.Contains(testOutLine, "--- FAIL")
-				if isFail && event.Test != "" && !slices.Contains(failedTests, event.Test) {
-					failedTests = append(failedTests, event.Test)
+
+				if isFail && event.Test != "" && !mapHasKey(failedTests, event.Test) {
+					failedTests[event.Test] = true
 				}
 
 				testOutLine = strings.Replace(testOutLine, "(0.00s)", "", 1)
@@ -114,7 +118,7 @@ func processOutput(params *processOutputParams) {
 				}
 
 				// Print non-package lines if verbose or the test failed
-				if params.FlagVerbose || slices.Contains(failedTests, event.Test) {
+				if params.FlagVerbose || mapHasKey(failedTests, event.Test) {
 					lineOutTrimmed(testOutLine)
 					for _, l := range testOutputLines[event.Test] {
 						lineOutTrimmed(l)
@@ -128,15 +132,20 @@ func processOutput(params *processOutputParams) {
 				testOutLine = shColor("whitesmoke", testOutLine)
 
 				if event.Test != "" {
-					// we need to save some lines so we can print them later
-					testOutputLines[event.Test] = append(testOutputLines[event.Test], testOutLine)
+					// if TestSummary already printed this can be printed too
+					if mapHasKey(failedTests, event.Test) {
+						lineOutTrimmed(testOutLine)
+
+					} else { // save to print later
+						testOutputLines[event.Test] = append(testOutputLines[event.Test], testOutLine)
+					}
 				}
 			}
 		}
 
 		// Print no test packages
-		if event.Test == "" && (event.Action == "skip" || (event.Action == "pass" && dummyPackages[event.Package])) {
-			printSkipped(event.Package)
+		if event.Test == "" && (event.Action == "skip" || (event.Action == "pass" && noTestsPkgsMap[event.Package])) {
+			printNoTestPkg(event.Package)
 			continue
 		}
 
@@ -193,12 +202,12 @@ func processOutput(params *processOutputParams) {
 	params.LineOut(sf("%s Pkgs: %s", chev, pkgs))
 
 	// Print coverage
-	avgCoverage := sliceAvg(coverages)
-	covFormatted := sf("%.2f", avgCoverage) + "%"
-	covColor := coverageColor(avgCoverage) + ":bold"
-	if params.AverageCoverage {
-		params.LineOut(sf("%s Coverage: %s   [average]   %s", chev, shColor(covColor, covFormatted), shColor("gray", "(set flag 'fullCoverage' for accurate calculation)")))
-	}
+	totalCoverage, isAvg := getTotalCoverage(params.CoverProfile, coverages)
+	covFormatted := sf("%.2f", totalCoverage) + "%"
+	covColor := coverageColor(totalCoverage) + ":bold"
+
+	note := ifelse(isAvg, "   [average]    "+shColor("gray", "(set flag 'fullCoverage' for accurate calculation)"), "   [accurate]")
+	params.LineOut(sf("%s Coverage: %s%s", chev, shColor(covColor, covFormatted), note))
 
 	if params.FlagListEmpty {
 		params.LineOut()
@@ -216,8 +225,16 @@ func processOutput(params *processOutputParams) {
 		}
 	}
 
+	// "return" total coverage to caller
+	if params.TotalCoverage != nil {
+		*params.TotalCoverage = totalCoverage
+	}
+
+	// "return" failed tests to caller
 	if params.FailedTests != nil {
-		*params.FailedTests = failedTests
+		failedTestsList := maps.Keys(failedTests)
+		sort.Strings(failedTestsList)
+		*params.FailedTests = failedTestsList
 	}
 }
 
@@ -228,4 +245,40 @@ func coverageParse(cov string) float64 {
 
 func coverageColor(cov float64) string {
 	return ifelse(cov < 50, "red", ifelse(cov < 75, "yellow", "green"))
+}
+
+// If coverProfile is set, calculate accurately, otherwise just average coverages
+func getTotalCoverage(coverProfile string, coverages []float64) (float64, bool) {
+	cpExists := coverProfile != "" && fileExists(coverProfile)
+
+	if !cpExists {
+		return sliceAvg(coverages), true
+	}
+
+	var cov float64
+	var stat float64
+
+	readFile, err := os.Open(coverProfile)
+	if err != nil {
+		fmt.Println("Error: failed to read cover profile")
+		return sliceAvg(coverages), true
+	}
+	defer readFile.Close()
+
+	fileScanner := bufio.NewScanner(readFile)
+	fileScanner.Split(bufio.ScanLines)
+
+	for fileScanner.Scan() {
+		line := fileScanner.Text()
+		parts := strings.Split(line, " ")
+		if len(parts) == 3 && parts[2] != "" {
+			lineStat, _ := strconv.ParseFloat(parts[1], 64)
+			stat += lineStat
+			if parts[2] == "1" {
+				cov += lineStat
+			}
+		}
+	}
+
+	return (cov / stat) * 100, false
 }

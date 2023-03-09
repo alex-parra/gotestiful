@@ -30,7 +30,7 @@ func runTests(p *processOutputParams, outLines ...TestEvent) []string {
 			FlagListEmpty:   p.FlagListEmpty,
 			FlagListIgnored: p.FlagListIgnored,
 			IndentSpaces:    2,
-			AverageCoverage: true,
+			CoverProfile:    "",
 		})
 		wg.Done()
 	}()
@@ -64,7 +64,7 @@ func TestProcessOutput(t *testing.T) {
 			"✔ tst              0.266s",
 			"",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
-			"❯ Coverage: 0.00%   [average]   (set flag 'fullCoverage' for accurate calculation)",
+			"❯ Coverage: 0.00%   [average]    (set flag 'fullCoverage' for accurate calculation)",
 		}, out)
 	})
 
@@ -86,7 +86,7 @@ func TestProcessOutput(t *testing.T) {
 			"✔ tst     0.0%     0.266s",
 			"",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
-			"❯ Coverage: 0.00%   [average]   (set flag 'fullCoverage' for accurate calculation)",
+			"❯ Coverage: 0.00%   [average]    (set flag 'fullCoverage' for accurate calculation)",
 		}, out)
 	})
 
@@ -114,7 +114,7 @@ func TestProcessOutput(t *testing.T) {
 			"-------------------------",
 			"",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
-			"❯ Coverage: 0.00%   [average]   (set flag 'fullCoverage' for accurate calculation)",
+			"❯ Coverage: 0.00%   [average]    (set flag 'fullCoverage' for accurate calculation)",
 		}, out)
 	})
 
@@ -143,7 +143,7 @@ func TestProcessOutput(t *testing.T) {
 			"◼ tst              0.308s",
 			"",
 			"❯ Pkgs: tested: 1    failed: 1    noTests: 0    excluded: 0",
-			"❯ Coverage: 0.00%   [average]   (set flag 'fullCoverage' for accurate calculation)",
+			"❯ Coverage: 0.00%   [average]    (set flag 'fullCoverage' for accurate calculation)",
 		}, out)
 	})
 
@@ -159,7 +159,7 @@ func TestProcessOutput(t *testing.T) {
 			"! tst     0.0%     no tests",
 			"",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 1    excluded: 0",
-			"❯ Coverage: 0.00%   [average]   (set flag 'fullCoverage' for accurate calculation)",
+			"❯ Coverage: 0.00%   [average]    (set flag 'fullCoverage' for accurate calculation)",
 		}, out)
 	})
 
@@ -174,7 +174,7 @@ func TestProcessOutput(t *testing.T) {
 		assert.Equal(t, []string{
 			"",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 1    excluded: 0",
-			"❯ Coverage: 0.00%   [average]   (set flag 'fullCoverage' for accurate calculation)",
+			"❯ Coverage: 0.00%   [average]    (set flag 'fullCoverage' for accurate calculation)",
 		}, out)
 	})
 
@@ -190,7 +190,7 @@ func TestProcessOutput(t *testing.T) {
 			"! tst     0.0%     no tests",
 			"",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 1    excluded: 0",
-			"❯ Coverage: 0.00%   [average]   (set flag 'fullCoverage' for accurate calculation)",
+			"❯ Coverage: 0.00%   [average]    (set flag 'fullCoverage' for accurate calculation)",
 			"",
 			"Packages with no tests:",
 			"- tst",
@@ -216,7 +216,7 @@ func TestProcessOutput(t *testing.T) {
 			"✔ tst    50.0%     0.186s",
 			"",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
-			"❯ Coverage: 50.00%   [average]   (set flag 'fullCoverage' for accurate calculation)",
+			"❯ Coverage: 50.00%   [average]    (set flag 'fullCoverage' for accurate calculation)",
 		}, out)
 	})
 
@@ -239,7 +239,7 @@ func TestProcessOutput(t *testing.T) {
 			"✔ tst        -     no statements",
 			"",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 0",
-			"❯ Coverage: 0.00%   [average]   (set flag 'fullCoverage' for accurate calculation)",
+			"❯ Coverage: 0.00%   [average]    (set flag 'fullCoverage' for accurate calculation)",
 		}, out)
 	})
 
@@ -275,7 +275,7 @@ func TestProcessOutput(t *testing.T) {
 			"◼ tst    50.0%     0.108s",
 			"",
 			"❯ Pkgs: tested: 1    failed: 1    noTests: 0    excluded: 0",
-			"❯ Coverage: 50.00%   [average]   (set flag 'fullCoverage' for accurate calculation)",
+			"❯ Coverage: 50.00%   [average]    (set flag 'fullCoverage' for accurate calculation)",
 		}, out)
 	})
 
@@ -315,7 +315,7 @@ func TestProcessOutput(t *testing.T) {
 			"-------------------------",
 			"",
 			"❯ Pkgs: tested: 1    failed: 1    noTests: 0    excluded: 0",
-			"❯ Coverage: 50.00%   [average]   (set flag 'fullCoverage' for accurate calculation)",
+			"❯ Coverage: 50.00%   [average]    (set flag 'fullCoverage' for accurate calculation)",
 		}, out)
 	})
 
@@ -338,7 +338,7 @@ func TestProcessOutput(t *testing.T) {
 			"✔ tst    50.0%     0.186s",
 			"",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 1",
-			"❯ Coverage: 50.00%   [average]   (set flag 'fullCoverage' for accurate calculation)",
+			"❯ Coverage: 50.00%   [average]    (set flag 'fullCoverage' for accurate calculation)",
 		}, out)
 	})
 
@@ -361,7 +361,7 @@ func TestProcessOutput(t *testing.T) {
 			"✔ tst    50.0%     0.186s",
 			"",
 			"❯ Pkgs: tested: 1    failed: 0    noTests: 0    excluded: 1",
-			"❯ Coverage: 50.00%   [average]   (set flag 'fullCoverage' for accurate calculation)",
+			"❯ Coverage: 50.00%   [average]    (set flag 'fullCoverage' for accurate calculation)",
 			"",
 			"Packages ignored:",
 			"- tst/ignored",
